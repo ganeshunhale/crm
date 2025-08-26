@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,18 +7,57 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+build/
+dist-ssr/
+
+# Environment files
 *.local
+.env
+.env.*.local
+
+# Test coverage
+coverage/
+
+# System files
+.DS_Store
+Thumbs.db
 
 # Editor directories and files
-.vscode/*
+.vscode/
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Optional caches
+.cache/
+.eslintcache
+.stylelintcache
+parcel-cache/
+*.tsbuildinfo
+
+# React Snap (if used)
+__snapshots__/
+
+# Storybook
+.out/
+storybook-static/
+
+# Framework-specific
+.next/              # Next.js
+.netlify/           # Netlify
+.vercel/            # Vercel
+.expo/              # React Native
+.expo-shared/       # React Native
+
+# Misc
+*.pem               # SSL keys
+test-results/
