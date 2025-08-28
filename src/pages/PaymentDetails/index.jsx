@@ -31,7 +31,7 @@ const PaymentDetails = () => {
         <div className="dashboard flex flex-col h-screen">
 
             <div className="flex-[2] min-h-0 bg-[#1e1e1e] w-[300px]">
-                <Typography>Payment Test Page</Typography>
+              
                 <Drawer
                     variant="permanent"
                     sx={{
@@ -47,13 +47,14 @@ const PaymentDetails = () => {
                 >
                     <Toolbar />
                     <Box sx={{ overflow: "auto" }}>
+                         
                         <List>
                             {/* Trading Accordion */}
                             <ListItemButton onClick={() => setOpenTrading(!openTrading)}>
                                 <ListItemIcon>
                                     <ShowChart sx={{ color: "white" }} />
                                 </ListItemIcon>
-                                <ListItemText primary="Trading" />
+                                 <ListItemText primary="Trading" />
                                 {openTrading ? <ExpandLess /> : <ExpandMore />}
                             </ListItemButton>
 

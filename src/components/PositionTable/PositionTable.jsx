@@ -4,20 +4,31 @@ import React, { StrictMode, useState, useEffect, useMemo, useRef } from "react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { Autocomplete, Button, CircularProgress, Input, TextField, useTheme } from "@mui/material"
 import { AgGridReact } from "ag-grid-react";
-import { useSelector } from "react-redux"
 import { CLOSED_ORDER_API, OPEN_POSITION_API, PENDING_ORDER_API, DELETE_OPEN_ORDER, DELETE_PENDING_ORDER } from "../../API/ApiServices"
 import "./PositionsTable.css" // import your CSS here
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditIcon from '@mui/icons-material/Edit';
 import PositionDialog from "./PositionDailog";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fetchOpenPositions,
+  fetchPendingOrders,
+  fetchClosedOrders,
+} from "../../redux/positionSlice";
+
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 export default function PositionsTable({ socket, sendMessage }) {
+  const dispatch = useDispatch();
+//  const { open, pending, closed, loading, error } = useSelector(
+//    (state) => state.positions
+//  );
   const gridRef = useRef(null)
   const muiTheme = useTheme()
   const [activeTab, setActiveTab] = useState("pending")
   const [open, setOpen] = useState(false);
+
   const [editData, setEditData] = useState({})
   const [positions, setPositions] = useState({
     open: [],
@@ -58,38 +69,46 @@ export default function PositionsTable({ socket, sendMessage }) {
         if (!gridRef.current || !gridRef.current.api) return;
         const api = gridRef.current.api;
         // console.log({ socketdata: data })
-        if (data.event !== "ticks" && activeTab !== "open") return
+        if (data.event !== "ticks"  ) return
         if (data.data.symbol) {
           // Get the existing row by ID
-          const rowNode = api.getRowNode(data.data.symbol);
-          if (rowNode) {
-            const type = rowNode.data.type;
-            let currentPrice;
-            if (type === "Buy") {
-              currentPrice = data.data.ask;
-            } else if (type === "Sell") {
-              currentPrice = data.data.bid;
-            } 
-            // else {
-            //   if(activeTab !== "open") currentPrice = data.data.bid; // default fallback
-            // }
+          // const rowNode = api.getRowNode(data.data.symbol);
+          api.forEachNode((rowNode) => {
+            if (rowNode.data.symbol === data.data.symbol) {
 
-            rowNode.setDataValue("current_price", currentPrice);
-            // console.log("rowNode",rowNode.data)
-              const openPrice = parseFloat(rowNode.data.open_price) ;
-              const volume = parseFloat(rowNode.data.volume) ;
-              const contractSize = parseFloat(rowNode.data.contractSize) ;
-              
-              // const signedVolume = type === "sell" ? volume * -1 : volume;
-              const signedVolume = type === "Sell" ? -volume : volume;
+              const type = rowNode.data.type;
+              let currentPrice;
+              if (type.includes("Buy") || type === "Buy") {
+                currentPrice = data.data.ask;
+              } else if (type.includes("Sell") || type === "Sell") {
+                currentPrice = data.data.bid;
+              }
+              // else {
+              //   if(activeTab !== "open") currentPrice = data.data.bid; // default fallback
+              // }
 
-              const profit = (currentPrice - openPrice) * signedVolume * contractSize;
-              // console.log({openPrice,volume,contractSize,signedVolume,profit})
-          
-              rowNode.setDataValue("profit", profit);
-          } else {
-            console.log("row does not exist")
-          }
+              rowNode.setDataValue("current_price", currentPrice);
+              // console.log("rowNode",rowNode.data)
+              if (activeTab == "open") {
+                const openPrice = parseFloat(rowNode.data.open_price);
+                const volume = parseFloat(rowNode.data.volume);
+                const contractSize = parseFloat(rowNode.data.contractSize);
+  
+                // const signedVolume = type === "sell" ? volume * -1 : volume;
+                const signedVolume = type === "Sell" ? -volume : volume;
+  
+                const profit = (currentPrice - openPrice) * signedVolume * contractSize;
+                // console.log({openPrice,volume,contractSize,signedVolume,profit})
+                if (rowNode.data.symbol == "USDJPY") {
+                  rowNode.setDataValue("profit", profit / currentPrice);
+                } else {
+                  rowNode.setDataValue("profit", profit);
+                }
+              }
+            } else {
+              console.log("row does not exist")
+            }
+          })
 
           // console.log({selectedSymbolRef:selectedSymbolRef.current,data:data.data})
 
@@ -104,7 +123,7 @@ export default function PositionsTable({ socket, sendMessage }) {
     return () => {
       socketInstance?.removeEventListener("message", handleMessage);
     };
-  }, [socket.current,activeTab]);
+  }, [socket.current, activeTab]);
 
   useEffect(() => {
     getPositions(demo_id)
@@ -120,20 +139,29 @@ export default function PositionsTable({ socket, sendMessage }) {
     const getTypeColor = () => {
       switch (data) {
         case "Sell":
-          return " text-white bg-red-500";
+          return " text-white bg-[#EB483F]";
         case "Buy":
-          return " bg-[#21B818] text-white";
+          return "bg-[#158BF9] text-white";
+         case "Sell_limit":
+          return " text-white bg-[#EB483F]";
+        case "Buy_limit":
+          return "bg-[#158BF9] text-white";
         default:
           return "bg-slate-500";
       }
     };
 
     return (
-      <div
-        className={`mt-2 w-12 h-6 rounded flex items-center justify-center w-fit p-2 text-sm font-bold ${getTypeColor()}`}
-      >
-        {data}
+      <div className="mt-2 flex items-center gap-2 text-sm font-bold">
+        {/* Dot */}
+        <span
+          className={`w-3 h-3 rounded-full ${getTypeColor()}`}
+        ></span>
+
+        {/* Text */}
+        <span>{data}</span>
       </div>
+
     );
   };
 
@@ -262,6 +290,7 @@ export default function PositionsTable({ socket, sendMessage }) {
       { field: "sl", headerName: "S/L", maxWidth: 100 },
       {
         headerName: "Position",
+        field: "positionid",
         valueGetter: (params) =>
           params.data.positionId ??
           params.data.order_id ??
@@ -346,7 +375,7 @@ export default function PositionsTable({ socket, sendMessage }) {
     <>
       <PositionDialog onOpen={open} onClose={setOpen} editData={editData} setEditData={setEditData} activeTab={activeTab} getPositions={getPositions} />
       <div
-        className="h-[350px] border-slate-700 overflow-auto relative scroll-dark"
+        className="h-full border-slate-700 overflow-hidden relative scroll-dark"
         ref={scrollContainerRef}
       >
         <div
@@ -366,27 +395,29 @@ export default function PositionsTable({ socket, sendMessage }) {
             </button>
           ))}
         </div>
+        <div className="h-60 pt-1">
+          <AgGridReact
+            ref={gridRef}
+            className="ag-theme-quartz"
+            rowData={rowData}
+            getRowId={(params) => `${params.data.positionId || params.data.order_id || params.data.ticket}`}
+            columnDefs={colDefs}
+            defaultColDef={defaultColDef}
+            // getRowId={(params) => params.data.positionNo.toString()}
+            theme={themeQuartz.withParams({
+              backgroundColor: muiTheme.palette.background.default,
+              foregroundColor: "#e2e8f0",
+              headerBackgroundColor: "#1f2937",
+              headerTextColor: "#d1d5db",
+              borderColor: "#334155",
+              rowHoverColor: "#374151",
+              selectedRowBackgroundColor: "#1e293b",
+              borderRadius: 0,
+              wrapperBorderRadius: 0,
+            })}
+          />
+        </div>
 
-        <AgGridReact
-          ref={gridRef}
-          className="ag-theme-quartz"
-          rowData={rowData}
-          getRowId={(params) => params.data.symbol}
-          columnDefs={colDefs}
-          defaultColDef={defaultColDef}
-          // getRowId={(params) => params.data.positionNo.toString()}
-          theme={themeQuartz.withParams({
-            backgroundColor: muiTheme.palette.background.default,
-            foregroundColor: "#e2e8f0",
-            headerBackgroundColor: "#1f2937",
-            headerTextColor: "#d1d5db",
-            borderColor: "#334155",
-            rowHoverColor: "#374151",
-            selectedRowBackgroundColor: "#1e293b",
-            borderRadius: 0,
-            wrapperBorderRadius: 0,
-          })}
-        />
 
       </div>
     </>

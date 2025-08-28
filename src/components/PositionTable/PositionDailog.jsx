@@ -11,6 +11,18 @@ import CloseIcon from "@mui/icons-material/Close"
 import { EDIT_OPEN_ORDER, EDIT_PENDING_ORDER } from '../../API/ApiServices';
 import { useSelector } from "react-redux"
 
+const ORDER_TYPE_CONSTANT = {
+    0: "Buy",
+    1: "Sell",
+    2: "Buy_limit",
+    3: "Sell_limit",
+    4: "Buy_stop",
+    5: "Sell_stop",
+    6: "Buy_stop_limit",
+    7: "Sell_stop_limit",
+    8: "Close_by"
+  }
+
 export default function PositionDialog({ onOpen, onClose, editData, setEditData, activeTab, getPositions }) {
 
     const [tP, setTP] = useState(0)
@@ -72,6 +84,12 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
 
     };
 
+    const getReadableType = (type) => {
+    if (typeof type === "number") return ORDER_TYPE_CONSTANT[type] || "Unknown";
+    if (typeof type === "string") return type;
+    return "Unknown";
+  };
+
     const handleReset = () => {
         setTP(editData.tp)
         setSl(editData.sl)
@@ -128,7 +146,7 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
                                     Volume: {editData.volume}
                                 </Typography>
                                 <Typography variant="body2" color="gray">
-                                    Type: {editData.type}
+                                    Type: {getReadableType(editData.type)}
                                 </Typography>
                             </Box>
                         </Box>

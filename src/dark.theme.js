@@ -9,6 +9,10 @@ const darkTheme = createTheme({
     secondary: {
       main: '#f48fb1',
     },
+    button:{
+      blue: '#158BF9',
+      red:'#EB483F'
+    }
   },
 });
 

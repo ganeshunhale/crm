@@ -90,7 +90,7 @@ export default function DepositDialog({ onOpen, onClose }) {
 
                 </DialogContent>
                 <DialogActions p={2}>
-                    <Button onClick={handleSubmit} sx={{background:'#FFE535'}} variant='contained' fullWidth>
+                    <Button onClick={handleSubmit} sx={{background:'#FFE535',color:'black'}} variant='contained' fullWidth>
                         Deposit on real account
                     </Button>
                 </DialogActions>

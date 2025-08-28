@@ -12,13 +12,15 @@ import {
   Typography,
   TextField,
   IconButton,
-  CircularProgress
+  CircularProgress,
+  InputAdornment
 } from "@mui/material";
 // import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Link, useNavigate } from "react-router-dom";
 import { GET_CLIENT_DETAILS_API, LOGIN_USER_API } from "../../API/ApiServices";
 import { loginAction } from "../../redux/authSlice";
 import { useDispatch } from "react-redux";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -26,6 +28,11 @@ export default function Login() {
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleClickShowPassword = () => {
+    setShowPassword((prev) => !prev);
+  };
   let navigate = useNavigate();
   let dispatch = useDispatch()
   const handleimgChange = (e) => {
@@ -144,13 +151,23 @@ export default function Login() {
             <TextField
               label="Password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
+              
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleimgChange}
               required
               fullWidth
               margin="normal"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={handleClickShowPassword} edge="end">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Button
               type="submit"

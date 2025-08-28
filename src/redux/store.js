@@ -1,8 +1,10 @@
-import { configureStore ,combineReducers } from "@reduxjs/toolkit";
+import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import storage from "redux-persist/lib/storage";
-import { persistReducer, persistStore , FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER} from "redux-persist";
+import { persistReducer, persistStore, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from "redux-persist";
 import authSlice from "./authSlice"
 import tradePositionSlice from "./tradePositionSlice"
+import snackbarReducer from "./snackbarslice";
+import positionReducer from "./positionSlice";
 
 const authPersistConfig = {
   key: "auth",
@@ -12,7 +14,9 @@ const authPersistConfig = {
 
 const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authSlice),
-  tradeposition:tradePositionSlice
+  tradeposition: tradePositionSlice,
+  snackbar: snackbarReducer,
+  positions: positionReducer,
 });
 
 export const store = configureStore({

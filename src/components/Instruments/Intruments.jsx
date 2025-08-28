@@ -6,7 +6,7 @@ import SearchIcon from "@mui/icons-material/Search"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import CloseIcon from "@mui/icons-material/Close"
 
-import { Autocomplete, Button, CircularProgress, Input, TextField, useTheme } from "@mui/material"
+import { Autocomplete, Button, CircularProgress, Input, TextField, Tooltip, useTheme } from "@mui/material"
 import { GET_SELECTED_SYMBOLS_API, GET_SYMBOL_API, POST_SELECTED_SYMBOLS_API } from "../../API/ApiServices"
 // import { useWebSocket } from "../../customHooks/useWebsocket"
 import { selectedSymbolAction, updateTicksAction } from "../../redux/tradePositionSlice"
@@ -39,36 +39,32 @@ const SymbolRenderer = ({ data }) => (
 )
 
 const SignalRenderer = ({ data }) => {
-  const getSignalColor = () => {
-    switch (data.signal) {
-      case "up":
-        return "bg-green-500"
-      case "down":
-        return "bg-red-500"
-      default:
-        return "bg-slate-500"
-    }
-  }
+  const isUp = data.signal === "up";
+  const isDown = data.signal === "down";
 
-  const getSignalIcon = () => {
-    switch (data.signal) {
-      case "up":
-        return "↑"
-      case "down":
-        return "↓"
-      default:
-        return "-"
-    }
-  }
+  const arrowColor = isUp
+    ? "text-green-500"
+    : isDown
+    ? "text-red-500"
+    : "text-gray-400";
+
+  const arrowIcon = isUp ? "▲" : isDown ? "▼" : "–";
+  const tooltipText = isUp ? "Buy Signal" : isDown ? "Sell Signal" : "No Signal";
 
   return (
-    <div
-      className={`w-6 h-6 rounded flex items-center justify-center text-white text-sm font-bold ${getSignalColor()}`}
-    >
-      {getSignalIcon()}
-    </div>
-  )
-}
+    <Tooltip title={tooltipText} arrow>
+      <div className="flex items-center justify-center w-full h-full">
+        <span
+          className={`text-xl font-bold ${arrowColor} ${
+            isUp || isDown ? "animate-bounce" : ""
+          }`}
+        >
+          {arrowIcon}
+        </span>
+      </div>
+    </Tooltip>
+  );
+};
 
 
 
@@ -262,8 +258,15 @@ const DeleteButtonRenderer = (props) => {
               // Get the existing row by ID
               const rowNode = api.getRowNode(data.data.symbol);
               if (rowNode) {
+                const prevBid = rowNode.data.bid; 
+                const newBid = data.data.bid
+                let signal = "neutral";
+                if (prevBid) {
+                   if (newBid > prevBid) signal = "up";
+                   else if (newBid < prevBid) signal = "down"; }
                 rowNode.setDataValue("bid", data.data.bid);
                 rowNode.setDataValue("ask", data.data.ask);
+                rowNode.setDataValue("signal", signal);
               }else{
                 console.log("row does not exist")
               }

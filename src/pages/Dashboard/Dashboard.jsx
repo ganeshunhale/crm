@@ -22,11 +22,7 @@ const { socket,sendMessage, closeSocket } = useWebSocket(socketUrl);
   {/* Main Content */}
   <div className="flex flex-1 overflow-hidden">
     {/* Left Column */}
-    <div className="flex flex-col flex-[9] border-r border-slate-700 min-h-0">
-      {/* Top (split equally) */}
-      <div className="flex flex-1 min-h-0 border-b border-slate-700">
-        {/* Instruments Panel */}
-        <div className="flex-1 border-r border-slate-700 overflow-auto">
+    <div className="flex-1 min-w-[350px] border-r border-slate-700 overflow-auto">
           <InstrumentsPanel
             onSymbolSelect={handleSymbolSelect}
             selectedSymbol={selectedSymbol}
@@ -34,6 +30,11 @@ const { socket,sendMessage, closeSocket } = useWebSocket(socketUrl);
             sendMessage={sendMessage}
           />
         </div>
+    <div className="flex flex-col flex-[9] border-r border-slate-700 min-h-0">
+      {/* Top (split equally) */}
+      <div className="flex flex-1 min-h-0 border-b border-slate-700">
+        {/* Instruments Panel */}
+        
 
         {/* Trading Widget */}
         <div className="flex-3 min-h-0 overflow-auto">
@@ -49,7 +50,7 @@ const { socket,sendMessage, closeSocket } = useWebSocket(socketUrl);
     </div>
 
     {/* Right Column */}
-    <div className="flex-[2] min-h-0 bg-[#1e1e1e]">
+    <div className="flex-[2] min-w-[350px] min-h-0 bg-[#1e1e1e]">
       <TradingPanel />
     </div>
   </div>

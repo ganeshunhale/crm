@@ -87,7 +87,8 @@ export default function Register() {
   }
 
   return (
-    <div className="h-screen bg-gray-900 text-white p-8">
+    <div className="h-screen overflow-hidden
+     bg-gray-900 text-white p-8">
       {/* Toast Notification */}
       {toast && (
         <div

@@ -13,69 +13,86 @@ import {
 } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined"
+import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux"
-import { GET_ACCOUNT_DETAILS, LIMIT_ORDER_API, MARKET_ORDER_API } from "../../API/ApiServices"
+import { showSnackbar } from "../../redux/snackbarslice";
+import { GET_ACCOUNT_DETAILS, LIMIT_ORDER_API, MARKET_ORDER_API, OPEN_POSITION_API, PENDING_ORDER_API } from "../../API/ApiServices"
 
 export default function TradingPanel() {
+  const dispatch = useDispatch();
   const [orderType, setOrderType] = useState("market")
   const [volume, setVolume] = useState(0.01)
-  const [openPrice, setOpenPrice] = useState(3377.377)
+  const [openPrice, setOpenPrice] = useState(0)
   const [takeProfit, setTakeProfit] = useState(0)
   const [stopLoss, setStopLoss] = useState(0)
-  const [accountDetails,setAccountDetails] = useState({})
+  const [accountDetails, setAccountDetails] = useState({})
   const [selectedOrderType, setSelectedOrderType] = useState("sell")
   const authState = useSelector(state => state.auth)
   const tradepositionState = useSelector(state => state.tradeposition)
   // Mock prices for demonstration
 
-  useEffect(()=>{
-     getUserAccDetails()
-  },[])
+  useEffect(() => {
+    getUserAccDetails()
+  }, [])
 
-  const getUserAccDetails = async ()=> {
-    try{
+  const getUserAccDetails = async () => {
+    try {
       const res = await GET_ACCOUNT_DETAILS()
       setAccountDetails(res.data.result)
-      console.log("user-details",res)
-    }catch(error){
+      console.log("user-details", res)
+    } catch (error) {
       console.log(error)
     }
   }
-  
 
-  const placeOrder = async()=>{
-    let marketOrderPayoad ={
-      "event":"market-order",
-      "data":{
-              "symbol":tradepositionState.selectedSymbol,
-              "order_type": selectedOrderType,
-              "client_id": authState?.data?.client_MT5_id?.demo_id,
-              "volume": volume,
-              "tp":takeProfit,
-              "sl":stopLoss
 
-          }
-  }
-  let limitOrderPaload ={
-    "event":"limit-order",
-    "data":{
-            "symbol":tradepositionState.selectedSymbol,
-            "order_type": `${selectedOrderType}_limit`,
-            "sys_price" : openPrice,
-            "client_id": authState?.data?.client_MT5_id?.demo_id,
-            "volume": volume,
-            "tp":takeProfit,
-            "sl":stopLoss
+  const placeOrder = async () => {
+    let marketOrderPayoad = {
+      "event": "market-order",
+      "data": {
+        "symbol": tradepositionState.selectedSymbol,
+        "order_type": selectedOrderType,
+        "client_id": authState?.data?.client_MT5_id?.demo_id,
+        "volume": volume,
+        "tp": takeProfit,
+        "sl": stopLoss
 
+      }
+    }
+    let limitOrderPaload = {
+      "event": "limit-order",
+      "data": {
+        "symbol": tradepositionState.selectedSymbol,
+        "order_type": `${selectedOrderType}_limit`,
+        "sys_price": openPrice,
+        "client_id": authState?.data?.client_MT5_id?.demo_id,
+        "volume": volume,
+        "tp": takeProfit,
+        "sl": stopLoss
+
+      }
+    }
+    try {
+      const marketOrder = orderType == "pending" ? await LIMIT_ORDER_API(limitOrderPaload) : await MARKET_ORDER_API(marketOrderPayoad)
+      console.log("order-call", marketOrder)
+      if (marketOrder.status === 200) {
+        const _id = authState?.data?.client_MT5_id?.demo_id;
+        if (orderType == "pending") {
+          await PENDING_ORDER_API(_id);
+        } else {
+          await OPEN_POSITION_API(_id);
         }
-}
-try {
-  const marketOrder = orderType=="pending"? await LIMIT_ORDER_API(limitOrderPaload):await MARKET_ORDER_API(marketOrderPayoad)
-  console.log(marketOrder)
-} catch (error) {
-  console.error(error,"market order api failed")
-}
+        dispatch(showSnackbar({ message: "Order Placed successfully!", severity: "success" }));
+
+      }
+
+    } catch (error) {
+      console.error(error, "market order api failed")
+      dispatch(showSnackbar({ message: "Order Error!", severity: "error" }));
+    }
   }
+
+
   return (
     <Box display="flex" flexDirection="column" height="100%" p={2}>
       {/* Header */}
@@ -125,18 +142,18 @@ try {
             textAlign: "center",
             userSelect: "none",
             border: 2,
-            borderColor: "#21B818",
-            bgcolor: selectedOrderType === "buy" ? "#21B818" : "transparent",
+            borderColor: "#158BF9",
+            bgcolor: selectedOrderType === "buy" ? "#158BF9" : "transparent",
             transition: "background-color 0.3s ease",
             "&:hover": {
-              bgcolor: selectedOrderType === "buy" ? "#21B818" : "rgba(25, 118, 210, 0.1)",
+              bgcolor: selectedOrderType === "buy" ? "#158BF9" : "rgba(25, 118, 210, 0.1)",
             },
           }}>
-          <Typography variant="caption" color={selectedOrderType === "buy" ? "white" : "#21B818"}>
+          <Typography variant="caption" color={selectedOrderType === "buy" ? "white" : "#158BF9"}>
             Buy
           </Typography>
-          <Typography variant="h6" color={selectedOrderType === "buy" ? "white" : "#21B818"}>
-          {tradepositionState.selectedSymbolData.ask}
+          <Typography variant="h6" color={selectedOrderType === "buy" ? "white" : "#158BF9"}>
+            {tradepositionState.selectedSymbolData.ask}
           </Typography>
           {/* <Typography variant="caption" color={selectedOrderType === "buy" ? "white" : "primary.main"}>
             31%
@@ -160,7 +177,7 @@ try {
       </Tabs>
 
 
-      {orderType=="pending"&&<Box mb={1}>
+      {orderType == "pending" && <Box mb={1}>
         <Typography variant="body2" color="gray" >
           Open price
         </Typography>
@@ -173,15 +190,17 @@ try {
               setOpenPrice(val === "" ? "" : Number(val));
             }}
             fullWidth
-            
+
             size="small"
             InputProps={{
               endAdornment: <InputAdornment position="end">Limit</InputAdornment>,
               sx: { color: "white" },
             }}
             sx={{
+              minWidth: 150,
               backgroundColor: "#2c2c2c",
-              input: { color: "white" ,
+              input: {
+                color: "white",
                 // remove arrows (Chrome, Edge, Safari)
                 '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
                   WebkitAppearance: 'none',
@@ -190,14 +209,15 @@ try {
                 // remove arrows (Firefox)
                 '&[type=number]': {
                   MozAppearance: 'textfield',
-                },},
+                },
+              },
             }}
 
           />
-          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" ? Number((prev + 0.1).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" ? Number((prev + 0.01).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray" }}>
             +
           </Button>
-          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.1).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.01).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
             -
           </Button>
         </Box>
@@ -223,15 +243,16 @@ try {
               sx: { color: "white" },
             }}
             sx={{
+              minWidth: 150,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}
 
           />
-          <Button variant="outlined" onClick={() => setVolume(prev => (typeof prev === "number" ? Number((prev + 0.1).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setVolume(prev => (typeof prev === "number" ? Number((prev + 0.01).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray" }}>
             +
           </Button>
-          <Button variant="outlined" onClick={() => setVolume(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.1).toFixed(3)): 0))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setVolume(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.01).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
             -
           </Button>
         </Box>
@@ -263,15 +284,15 @@ try {
               sx: { color: "white" },
             }}
             sx={{
-              //   width: 130,
+              minWidth: 150,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}
           />
-          <Button variant="outlined" onClick={() => setTakeProfit(prev => (typeof prev === "number" ? Number((prev + 0.1).toFixed(3)) : 0.1))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setTakeProfit(prev => (typeof prev === "number" ? Number((prev + 0.01).toFixed(3)) : 0.1))} sx={{ color: "gray", borderColor: "gray" }}>
             +
           </Button>
-          <Button variant="outlined" onClick={() => setTakeProfit(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.1).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setTakeProfit(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.01).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
             -
           </Button>
         </Box>
@@ -300,6 +321,7 @@ try {
               sx: { color: "white" },
             }}
             sx={{
+              minWidth: 150,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}
@@ -320,9 +342,9 @@ try {
         fullWidth
         sx={{
           mb: 2,
-          bgcolor: selectedOrderType === "sell" ? "error.main" : "#21B818",
+          bgcolor: selectedOrderType === "sell" ? "error.main" : "#158BF9",
           "&:hover": {
-            bgcolor: selectedOrderType === "sell" ? "error.dark" : "#21B818",
+            bgcolor: selectedOrderType === "sell" ? "error.dark" : "#158BF9",
           },
         }}
       >
@@ -353,10 +375,10 @@ try {
         </Box>
         <Box display="flex" justifyContent="space-between">
           <Typography variant="body2" color="gray">
-           Equity :
+            Equity :
           </Typography>
           <Typography variant="body2" color="white">
-             {accountDetails?.balance +  accountDetails?.credit} 
+            {accountDetails?.balance + accountDetails?.credit}
           </Typography>
         </Box>
         <Button variant="text" size="small" sx={{ color: "skyblue", textTransform: "none" }}>
