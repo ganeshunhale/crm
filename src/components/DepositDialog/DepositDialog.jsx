@@ -18,7 +18,7 @@ export default function DepositDialog({ onOpen, onClose }) {
     const demo_id = isLoggedIn.data.client_MT5_id.demo_id
 
     const handleSubmit = async () => {
-        window.location.href ='/dashboard/payment-detail'
+        window.location.href ='/dashboard/lay-out'
 
 
     };

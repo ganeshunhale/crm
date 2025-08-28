@@ -17,6 +17,7 @@ import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux"
 import { showSnackbar } from "../../redux/snackbarslice";
 import { GET_ACCOUNT_DETAILS, LIMIT_ORDER_API, MARKET_ORDER_API, OPEN_POSITION_API, PENDING_ORDER_API } from "../../API/ApiServices"
+import { fetchOpenPositions, fetchPendingOrders } from "../../redux/positionSlice"
 
 export default function TradingPanel() {
   const dispatch = useDispatch();
@@ -77,15 +78,13 @@ export default function TradingPanel() {
       console.log("order-call", marketOrder)
       if (marketOrder.status === 200) {
         const _id = authState?.data?.client_MT5_id?.demo_id;
-        if (orderType == "pending") {
-          await PENDING_ORDER_API(_id);
+        if (orderType === "pending") {
+          dispatch(fetchPendingOrders(_id));
         } else {
-          await OPEN_POSITION_API(_id);
+          dispatch(fetchOpenPositions(_id));
         }
         dispatch(showSnackbar({ message: "Order Placed successfully!", severity: "success" }));
-
       }
-
     } catch (error) {
       console.error(error, "market order api failed")
       dispatch(showSnackbar({ message: "Order Error!", severity: "error" }));
@@ -113,7 +112,7 @@ export default function TradingPanel() {
           sx={{
             cursor: "pointer",
             borderRadius: 1,
-            p: 2,
+            p: 1,
             textAlign: "center",
             userSelect: "none",
             border: 2,
@@ -138,7 +137,7 @@ export default function TradingPanel() {
           sx={{
             cursor: "pointer",
             borderRadius: 1,
-            p: 2,
+            p: 1,
             textAlign: "center",
             userSelect: "none",
             border: 2,
@@ -197,7 +196,7 @@ export default function TradingPanel() {
               sx: { color: "white" },
             }}
             sx={{
-              minWidth: 150,
+              minWidth: 130,
               backgroundColor: "#2c2c2c",
               input: {
                 color: "white",
@@ -214,7 +213,7 @@ export default function TradingPanel() {
             }}
 
           />
-          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" ? Number((prev + 0.01).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray" }}>
+          <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" ? Number((prev + 0.01).toFixed(3)) : 1))} sx={{ color: "gray", borderColor: "gray",width:'10px' }}>
             +
           </Button>
           <Button variant="outlined" onClick={() => setOpenPrice(prev => (typeof prev === "number" && prev > 0 ? Number((prev - 0.01).toFixed(3)) : 0))} sx={{ color: "gray", borderColor: "gray" }}>
@@ -243,7 +242,7 @@ export default function TradingPanel() {
               sx: { color: "white" },
             }}
             sx={{
-              minWidth: 150,
+              minWidth: 130,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}
@@ -284,7 +283,7 @@ export default function TradingPanel() {
               sx: { color: "white" },
             }}
             sx={{
-              minWidth: 150,
+              minWidth: 130,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}
@@ -321,7 +320,7 @@ export default function TradingPanel() {
               sx: { color: "white" },
             }}
             sx={{
-              minWidth: 150,
+              minWidth: 130,
               backgroundColor: "#2c2c2c",
               input: { color: "white" },
             }}

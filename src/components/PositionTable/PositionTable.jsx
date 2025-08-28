@@ -21,22 +21,15 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 export default function PositionsTable({ socket, sendMessage }) {
   const dispatch = useDispatch();
-//  const { open, pending, closed, loading, error } = useSelector(
-//    (state) => state.positions
-//  );
+  const { open: openPositions, pending, closed, loading, error } = useSelector(
+    (state) => state.positions
+  );
   const gridRef = useRef(null)
   const muiTheme = useTheme()
   const [activeTab, setActiveTab] = useState("pending")
   const [open, setOpen] = useState(false);
 
   const [editData, setEditData] = useState({})
-  const [positions, setPositions] = useState({
-    open: [],
-    pending: [],
-    closed: [],
-  });
-  const [rowData, setRowData] = useState([]);
-
   const isLoggedIn = useSelector(state => state.auth)
   const demo_id = isLoggedIn.data.client_MT5_id.demo_id
 
@@ -62,76 +55,68 @@ export default function PositionsTable({ socket, sendMessage }) {
   useEffect(() => {
     const socketInstance = socket.current;
     if (!socketInstance) return;
-
+  
+    const buyTypes = new Set([0, 2, 4, 6]);
+    const sellTypes = new Set([1, 3, 5, 7]);
+    const specialSymbols = new Set([
+      "USDCAD", "USDCHF", "USDJPY", "AUDCAD", "EURGBP", "EURJPY",
+      "GBPAUD", "GBPCHF", "GBPJPY", "AUDCHF", "AUDJPY", "AUDNZD",
+      "CADCHF", "CADJPY", "CHFJPY", "EURAUD", "EURCAD", "EURCHF",
+      "EURNZD", "GBPCAD", "GBPNZD", "NZDCAD", "NZDCHF", "NZDJPY",
+      "USDHKD"
+    ]);
     const handleMessage = (event) => {
       try {
+        if (!event.data||activeTab === "closed"||!gridRef.current || !gridRef.current.api) return;
         const data = JSON.parse(event.data);
-        if (!gridRef.current || !gridRef.current.api) return;
         const api = gridRef.current.api;
-        // console.log({ socketdata: data })
-        if (data.event !== "ticks"  ) return
-        if (data.data.symbol) {
-          // Get the existing row by ID
-          // const rowNode = api.getRowNode(data.data.symbol);
-          api.forEachNode((rowNode) => {
-            if (rowNode.data.symbol === data.data.symbol) {
-
-              const type = rowNode.data.type;
-              let currentPrice;
-              if (type.includes("Buy") || type === "Buy") {
-                currentPrice = data.data.ask;
-              } else if (type.includes("Sell") || type === "Sell") {
-                currentPrice = data.data.bid;
-              }
-              // else {
-              //   if(activeTab !== "open") currentPrice = data.data.bid; // default fallback
-              // }
-
-              rowNode.setDataValue("current_price", currentPrice);
-              // console.log("rowNode",rowNode.data)
-              if (activeTab == "open") {
-                const openPrice = parseFloat(rowNode.data.open_price);
-                const volume = parseFloat(rowNode.data.volume);
-                const contractSize = parseFloat(rowNode.data.contractSize);
   
-                // const signedVolume = type === "sell" ? volume * -1 : volume;
-                const signedVolume = type === "Sell" ? -volume : volume;
+        if (data.event !== "ticks" || !data.data?.symbol) return;
   
-                const profit = (currentPrice - openPrice) * signedVolume * contractSize;
-                // console.log({openPrice,volume,contractSize,signedVolume,profit})
-                if (rowNode.data.symbol == "USDJPY") {
-                  rowNode.setDataValue("profit", profit / currentPrice);
-                } else {
-                  rowNode.setDataValue("profit", profit);
-                }
-              }
-            } else {
-              console.log("row does not exist")
+        api.forEachNode((rowNode) => {
+          if (rowNode.data.symbol === data.data.symbol) {
+            const type = rowNode.data.type;
+            let currentPrice;
+  
+            if (type === "Buy" || buyTypes.has(type)) {
+              currentPrice = data.data.ask;
+            } else if (type === "Sell" || sellTypes.has(type)) {
+              currentPrice = data.data.bid;
             }
-          })
-
-          // console.log({selectedSymbolRef:selectedSymbolRef.current,data:data.data})
-
-        }
+  
+            // build updated row object
+            let updatedRow = { ...rowNode.data, current_price: currentPrice };
+  
+            if (activeTab === "open") {
+              const openPrice = parseFloat(rowNode.data.open_price);
+              const volume = parseFloat(rowNode.data.volume);
+              const contractSize = parseFloat(rowNode.data.contractSize);
+  
+              const signedVolume = type === "Sell" ? -volume : volume;
+              let profit = (currentPrice - openPrice) * signedVolume * contractSize;
+  
+              if (specialSymbols.has(rowNode.data.symbol)) {
+                profit = profit / currentPrice;
+              }
+  
+              updatedRow = { ...updatedRow, profit };
+            }
+  
+            // apply immutable update
+            api.applyTransaction({ update: [updatedRow] });
+          }
+        });
       } catch (err) {
         console.error("Invalid WS message:", event.data, err);
       }
     };
-
-    socketInstance?.addEventListener("message", handleMessage);
-
+  
+    socketInstance.addEventListener("message", handleMessage);
     return () => {
-      socketInstance?.removeEventListener("message", handleMessage);
+      socketInstance.removeEventListener("message", handleMessage);
     };
   }, [socket.current, activeTab]);
 
-  useEffect(() => {
-    getPositions(demo_id)
-  }, [demo_id, activeTab])
-
-  useEffect(() => {
-    setRowData(positions[activeTab] || []);
-  }, [positions, activeTab]);
 
   const TypeRenderer = (params) => {
     const data = getReadableType(params.value) // or params.data.type depending on your setup
@@ -142,7 +127,7 @@ export default function PositionsTable({ socket, sendMessage }) {
           return " text-white bg-[#EB483F]";
         case "Buy":
           return "bg-[#158BF9] text-white";
-         case "Sell_limit":
+        case "Sell_limit":
           return " text-white bg-[#EB483F]";
         case "Buy_limit":
           return "bg-[#158BF9] text-white";
@@ -214,7 +199,13 @@ export default function PositionsTable({ socket, sendMessage }) {
         }
         const res = await DELETE_OPEN_ORDER(payload)
         if (res.status === 200) {
-          getPositions(demo_id);
+          dispatch(fetchOpenPositions(demo_id));  
+           const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const from = new Date(now.getTime() - oneDay).toISOString();
+    const to = new Date(now.getTime() + oneDay).toISOString();
+    const payload = { event: "get-deals", data: { from, to, client_id: demo_id } };
+    dispatch(fetchClosedOrders(payload));
         }
 
       }
@@ -227,7 +218,14 @@ export default function PositionsTable({ socket, sendMessage }) {
         }
         const response = await DELETE_PENDING_ORDER(payload);
         if (response.status === 200) {
-          getPositions(demo_id);
+           dispatch(fetchPendingOrders(demo_id));
+            const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const from = new Date(now.getTime() - oneDay).toISOString();
+    const to = new Date(now.getTime() + oneDay).toISOString();
+    const payload = { event: "get-deals", data: { from, to, client_id: demo_id } };
+    dispatch(fetchClosedOrders(payload));
+         
         }
       }
 
@@ -254,88 +252,124 @@ export default function PositionsTable({ socket, sendMessage }) {
   };
 
   const defaultColDef = useMemo(() => ({ flex: 1 }), []);
-  const colDefs = useMemo(() => {
-    const baseCols = [
-      { field: "symbol", headerName: "Symbol" },
-      {
-        headerName: "Type",
-        field: "type",
-        maxWidth: 120,
-        cellRenderer: TypeRenderer,
-        valueGetter: (params) => params.data.type ?? "-",
+ const colDefs = useMemo(() => {
+  const baseCols = [
+    { field: "symbol", headerName: "Symbol" },
+    {
+      headerName: "Type",
+      field: "type",
+      maxWidth: 120,
+      cellRenderer: TypeRenderer,
+      valueGetter: (params) => params.data.type ?? "-",
+    },
+    { field: "volume", headerName: "Volume", maxWidth: 120 },
+    {
+      headerName: "Open Price",
+      field: "open_price",
+      valueGetter: (params) => {
+        const value =
+          params.data.open_price ??
+          params.data.openPrice ??
+          params.data.order_price;
+        return value != null ? formatPrice(value) : "-";
       },
-      { field: "volume", headerName: "Volume", maxWidth: 120, },
-      {
-        headerName: "Open Price",
-        field: "open_price",
-        valueGetter: (params) => {
-          const value =
-            params.data.open_price ??
-            params.data.openPrice ??
-            params.data.order_price;
-          return value != null ? formatPrice(value) : "-";
-        },
-      },
-      {
-        headerName: "Current Price",
-        field: "current_price",
-        valueGetter: (params) => {
-          const value =
-            params.data.current_price ??
-            params.data.closePrice;
-          return value != null ? formatPrice(value) : "-";
-        },
-      },
-      { field: "tp", headerName: "T/P", maxWidth: 100 },
-      { field: "sl", headerName: "S/L", maxWidth: 100 },
-      {
-        headerName: "Position",
-        field: "positionid",
-        valueGetter: (params) =>
-          params.data.positionId ??
-          params.data.order_id ??
-          params.data.ticket ??
-          "-",
-      },
-      {
-        headerName: "Open Time",
-        valueGetter: (params) =>
-          params.data.posTime ??
-          params.data.time ??
-          "-",
-      },
+    },
+  ];
 
-    ];
+  // Show price column depending on tab
+  if (activeTab === "closed") {
+    baseCols.push({
+      headerName: "Closed Price",
+      field: "closed_price",
+      valueGetter: (params) =>
+        params.data.closed_price ??
+        params.data.closePrice ??
+        "-",
+    });
+  } else {
+    baseCols.push({
+      headerName: "Current Price",
+      field: "current_price",
+      valueGetter: (params) =>
+        params.data.current_price ??
+        "-",
+    });
+  }
 
-    // Conditionally add profit column
-    if (activeTab === "open" || activeTab === "closed") {
-      baseCols.push({
-        field: "profit",
-        headerName: "P/L, USD",
-        maxWidth: 120,
-        cellRenderer: PLRenderer,
-        valueGetter: (params) => params.data.profit ?? "-",
-      });
+  baseCols.push(
+    { field: "tp", headerName: "T/P", maxWidth: 100 },
+    { field: "sl", headerName: "S/L", maxWidth: 100 },
+    {
+      headerName: "Position",
+      field: "positionid",
+      valueGetter: (params) =>
+        params.data.positionId ??
+        params.data.order_id ??
+        params.data.ticket ??
+        "-",
+    },
+    {
+      headerName: "Open Time",
+      valueGetter: (params) =>
+        params.data.posTime ??
+        params.data.time ??
+        "-",
     }
-    if (activeTab === "open" || activeTab === "pending") {
-      baseCols.push({
-        headerName: "Actions",
-        field: "delete",
-        maxWidth: 80,
-        cellRenderer: DeleteButtonRenderer,
-        sortable: false,
-        filter: false,
-      })
-    }
+  );
 
-    return baseCols;
-  }, [activeTab]);
+  // Conditionally add profit column
+  if (activeTab === "open" || activeTab === "closed") {
+    baseCols.push({
+      field: "profit",
+      headerName: "P/L, USD",
+      maxWidth: 120,
+      cellRenderer: PLRenderer,
+      valueGetter: (params) => params.data.profit ?? "-",
+    });
+  }
 
+  if (activeTab === "open" || activeTab === "pending") {
+    baseCols.push({
+      headerName: "Actions",
+      field: "delete",
+      maxWidth: 80,
+      cellRenderer: DeleteButtonRenderer,
+      sortable: false,
+      filter: false,
+    });
+  }
+
+  return baseCols;
+}, [activeTab]);
+
+
+
+
+  useEffect(() => {
+    if (!demo_id) return;
+    dispatch(fetchOpenPositions(demo_id));
+    dispatch(fetchPendingOrders(demo_id));
+
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const from = new Date(now.getTime() - oneDay).toISOString();
+    const to = new Date(now.getTime() + oneDay).toISOString();
+    const payload = { event: "get-deals", data: { from, to, client_id: demo_id } };
+    dispatch(fetchClosedOrders(payload));
+
+  }, [dispatch, demo_id, activeTab]);
+
+  const rowData = {
+    open: openPositions,
+    pending: pending,
+    closed: closed
+  };
 
   const getTabCount = (status) => {
-    // console.log("tab status", status)
-    return positions[status]?.length || 0;
-  }
+    console.log("tab status", status, rowData[status]);
+    return rowData[status]?.length || 0;
+  };
+
 
   const getPositions = async (demo_id) => {
     if (!demo_id) return;
@@ -399,7 +433,7 @@ export default function PositionsTable({ socket, sendMessage }) {
           <AgGridReact
             ref={gridRef}
             className="ag-theme-quartz"
-            rowData={rowData}
+            rowData={rowData[activeTab] || []}
             getRowId={(params) => `${params.data.positionId || params.data.order_id || params.data.ticket}`}
             columnDefs={colDefs}
             defaultColDef={defaultColDef}
@@ -423,5 +457,3 @@ export default function PositionsTable({ socket, sendMessage }) {
     </>
   );
 };
-
-

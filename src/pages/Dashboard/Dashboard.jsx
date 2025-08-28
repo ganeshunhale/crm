@@ -50,7 +50,7 @@ const { socket,sendMessage, closeSocket } = useWebSocket(socketUrl);
     </div>
 
     {/* Right Column */}
-    <div className="flex-[2] min-w-[350px] min-h-0 bg-[#1e1e1e]">
+    <div className="flex-[2] min-w-[300px] min-h-0 bg-[#1e1e1e]">
       <TradingPanel />
     </div>
   </div>
