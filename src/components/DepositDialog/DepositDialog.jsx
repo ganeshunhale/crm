@@ -18,7 +18,7 @@ export default function DepositDialog({ onOpen, onClose }) {
     const demo_id = isLoggedIn.data.client_MT5_id.demo_id
 
     const handleSubmit = async () => {
-        window.location.href ='/dashboard/lay-out'
+        window.location.href = '/dashboard/lay-out'
 
 
     };
@@ -26,8 +26,6 @@ export default function DepositDialog({ onOpen, onClose }) {
     const handleReset = () => {
 
     }
-
-
 
     const handleClose = () => {
         onClose(false);
@@ -75,7 +73,7 @@ export default function DepositDialog({ onOpen, onClose }) {
                                     Real
                                 </Typography>
                                 <List>
-                                   <ListItem sx={{ py: 0 }}>
+                                    <ListItem sx={{ py: 0 }}>
                                         <ListItemText primary="Full access to the terminal" />
                                     </ListItem>
                                     <ListItem sx={{ py: 0 }}>
@@ -90,7 +88,7 @@ export default function DepositDialog({ onOpen, onClose }) {
 
                 </DialogContent>
                 <DialogActions p={2}>
-                    <Button onClick={handleSubmit} sx={{background:'#FFE535',color:'black'}} variant='contained' fullWidth>
+                    <Button onClick={handleSubmit} sx={{ background: '#FFE535', color: 'black' }} variant='contained' fullWidth>
                         Deposit on real account
                     </Button>
                 </DialogActions>

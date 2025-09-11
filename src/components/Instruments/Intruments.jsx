@@ -1,516 +1,389 @@
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from "react"
-import { AgGridReact } from "ag-grid-react"
-import { ModuleRegistry, themeQuartz } from "ag-grid-community"
-import { AllCommunityModule } from "ag-grid-community"
-import SearchIcon from "@mui/icons-material/Search"
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
-import CloseIcon from "@mui/icons-material/Close"
+import { useState, useEffect, memo, useCallback, useMemo } from "react"
+import {
+  DndContext,
+  closestCenter,
+  DragOverlay,
+  defaultDropAnimationSideEffects
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 
-import { Autocomplete, Button, CircularProgress, Input, TextField, Tooltip, useTheme } from "@mui/material"
-import { GET_SELECTED_SYMBOLS_API, GET_SYMBOL_API, POST_SELECTED_SYMBOLS_API } from "../../API/ApiServices"
-// import { useWebSocket } from "../../customHooks/useWebsocket"
-import { selectedSymbolAction, updateTicksAction } from "../../redux/tradePositionSlice"
-import { useDispatch, useSelector } from "react-redux"
-import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
-// const socketUrl = import.meta.env.VITE_REACT_WS_BRODCASTER_URL
-ModuleRegistry.registerModules([AllCommunityModule])
+import {
+  Autocomplete,
+  Button,
+  CircularProgress,
+  TextField,
+} from "@mui/material"
 
-// Custom cell renderers
-const DragHandleRenderer = () => (
-  <div className="flex items-center justify-center text-slate-400 cursor-grab">
-    <div className="flex gap-0.5">
-      <div className="flex flex-col gap-0.5">
-        <div className="w-1 h-1 bg-current rounded-full"></div>
-        <div className="w-1 h-1 bg-current rounded-full"></div>
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <div className="w-1 h-1 bg-current rounded-full"></div>
-        <div className="w-1 h-1 bg-current rounded-full"></div>
-      </div>
-    </div>
-  </div>
-)
+import SortableInstrumentRow, { InstrumentRow } from "./InstrumentRow"
 
-const SymbolRenderer = ({ data }) => (
-  <div className="flex items-center ">
-    {/* <span className="text-lg">{data.icon}</span> */}
-    <span className="font-medium text-white">{data.symbol}</span>
-  </div>
-)
+import {
+  GET_SELECTED_SYMBOLS_API,
+  GET_SELECTED_TYPES_SYMBOLS_API,
+  GET_SYMBOL_API,
+  POST_SELECTED_SYMBOLS_API,
+} from "../../API/ApiServices"
+import {
+  selectedSymbolAction,
+  updateMandetorySymbols,
+  updateTicksAction,
+} from "../../redux/tradePositionSlice"
+import { useDispatch } from "react-redux"
 
-const SignalRenderer = ({ data }) => {
-  const isUp = data.signal === "up";
-  const isDown = data.signal === "down";
-
-  const arrowColor = isUp
-    ? "text-green-500"
-    : isDown
-    ? "text-red-500"
-    : "text-gray-400";
-
-  const arrowIcon = isUp ? "▲" : isDown ? "▼" : "–";
-  const tooltipText = isUp ? "Buy Signal" : isDown ? "Sell Signal" : "No Signal";
-
-  return (
-    <Tooltip title={tooltipText} arrow>
-      <div className="flex items-center justify-center w-full h-full">
-        <span
-          className={`text-xl font-bold ${arrowColor} ${
-            isUp || isDown ? "animate-bounce" : ""
-          }`}
-        >
-          {arrowIcon}
-        </span>
-      </div>
-    </Tooltip>
-  );
-};
-
-
-
-const PriceRenderer = ({ value, data, colDef }) => {
-  const isAsk = colDef.field === "ask"
-  const change = isAsk ? data.askChange : data.bidChange
-
-  const getClasses = () => {
-    if (change === undefined) return "text-white"
-    if (change > 0) return "bg-green-500/20 text-green-400"
-    if (change < 0) return "bg-red-500/20 text-red-400"
-    return "text-white"
-  }
-
-  return (
-    <div
-      className={` rounded text-sm font-mono ${getClasses()}`}
-    >
-      {value.toFixed(value < 10 ? 5 : 2)}
-    </div>
-  )
+const FILTER_TYPE = {
+  Favorites: "",
+  "Most Traded": "most_traded",
+  "Top Moves": "top_moves",
+  Metals: "metals",
+  Majors: "majors",
+  Crypto: "crypto",
+  Indices: "indices",
+  Energy: "energy",
 }
 
- function InstrumentsPanel({ onSymbolSelect,socket,sendMessage}) {
-  const gridRef = useRef(null)
-  const muiTheme = useTheme()
-  const selectedSymbolRef = useRef(null);
+// Consistent grid layout for header and rows
+const GRID_LAYOUT = "120px 30px 1fr 1fr"
+
+function InstrumentsPanel({ ticksSocket }) {
   const dispatch = useDispatch()
- 
-  // const { socket,sendMessage, closeSocket } = useWebSocket(socketUrl);
+
   const [instruments, setInstruments] = useState([])
-const [allSymbols, setAllSymbols] = useState([])
-const [selectedSymbols, setSelectedSymbols] = useState([])
-const [posting, setPosting] = useState(false)
+  const [allSymbols, setAllSymbols] = useState([])
+  const [selectedSymbols, setSelectedSymbols] = useState([])
+  const [posting, setPosting] = useState(false)
+  const [filterType, setFilterType] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [selectedSymbol, setSelectedSymbol] = useState(null)
+  const [activeId, setActiveId] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
 
-const DeleteButtonRenderer = (props) => {
-  const { data, api, context } = props;
-  const { instruments, setInstruments } = context; // 👈 grab state + setter from context
-
-  const onDelete = async (e) => {
-    e.stopPropagation();
-
-    // Remove row from AG Grid
-    api.applyTransaction({ remove: [data] });
-
-    const allSymbols = [];
-    api.forEachNode((node) => allSymbols.push(node.data));
-
-    // Update state so other components stay in sync
-    setInstruments(allSymbols);
-    try {
-      await POST_SELECTED_SYMBOLS_API({
-        event: "create",
-        data: { symbols: allSymbols.map((i) => i.symbol) },
-      });
-    } catch (err) {
-      console.error("Delete failed", err);
-
-      // rollback state + grid if API fails
-      api.applyTransaction({ add: [data] });
-
-      const rollbackSymbols = [];
-      api.forEachNode((node) => rollbackSymbols.push(node.data));
-      setInstruments(rollbackSymbols);
-    }
-  };
-
-  return (
-    <button onClick={onDelete} type="button">
-      <DeleteRoundedIcon
-        fontSize="small"
-        className="text-red-500 cursor-pointer"
-      />
-    </button>
-  );
-};
-  const columnDefs = useMemo(() =>[
-    // {
-    //   field: "drag",
-    //   headerName: "",
-    //   width: 40,
-    //   cellRenderer: DragHandleRenderer,
-    //   sortable: false,
-    //   filter: false,
-    //   resizable: false,
-    //   suppressMenu: true,
-    // },
-    {
-      field: "symbol",
-      headerName: "Symbol",
-      flex: 1,
-      cellRenderer: SymbolRenderer,
-      minWidth: 80,
-      resizable: true,
-    //   suppressMenu: true,
-    },
-    {
-      field: "signal",
-      headerName: "Signal",
-      minWidth: 30,
-      cellRenderer: SignalRenderer,
-      sortable: false,
-      suppressMenu: true,
-      
-      resizable: true,
-    },
-    
-    {
-      field: "bid",
-      headerName: "Bid",
-      minWidth: 80,
-      cellRenderer: PriceRenderer,
-      type: "numericColumn",
-      suppressMenu: true,
-      resizable: true,
-    },
-    {
-      field: "ask",
-      headerName: "Ask",
-      minWidth: 80,
-      cellRenderer: PriceRenderer,
-      type: "numericColumn",
-      suppressMenu: true,
-      resizable: true,
-    },
-    {
-      field: "delete",
-      headerName: "Delete",
-      cellRenderer: DeleteButtonRenderer,
-      sortable: false,
-      resizable: false,
-      suppressMenu: true
-    },
-  ], []);
-
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     if (!gridRef.current || !gridRef.current.api) return;
-  //     const api = gridRef.current.api;
-  
-  //     // Simulate "socket" data for random symbols
-  //     const updates = [];
-  
-  //     // Pick 1-3 random symbols to update
-  //     const symbolsToUpdate = instruments
-  //       .sort(() => Math.random() - 0.5) // shuffle
-  //       .slice(0, Math.floor(Math.random() * 3) + 1);
-  
-  //     symbolsToUpdate.forEach((instrument) => {
-  //       const bidChange = (Math.random() - 0.5) * (instrument.bid * 0.001);
-  //       const askChange = (Math.random() - 0.5) * (instrument.ask * 0.001);
-  
-  //       updates.push({
-  //         ...instrument,
-  //         bid: Math.max(0, instrument.bid + bidChange),
-  //         ask: Math.max(0, instrument.ask + askChange),
-  //         bidChange,
-  //         askChange,
-  //       });
-  //     });
-  
-  //     // Update only the changed rows in AG Grid
-  //     api.applyTransaction({ update: updates });
-  
-  //     // Clear change indicators after 1 second
-  //     setTimeout(() => {
-  //       const clearedUpdates = updates.map((instrument) => ({
-  //         ...instrument,
-  //         bidChange: undefined,
-  //         askChange: undefined,
-  //       }));
-  //       api.applyTransaction({ update: clearedUpdates });
-  //     }, 1000);
-  //   }, 3000);
-  
-  //   return () => clearInterval(interval);
-  // }, [instruments]);
-  
+  // ---- WebSocket updates ----
   useEffect(() => {
-    const socketInstance = socket.current;
-  if (!socketInstance) return;
+    const socketInstance = ticksSocket.current
+    if (!socketInstance) return
 
     const handleMessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        if (!gridRef.current || !gridRef.current.api) return;
-            const api = gridRef.current.api;
-            // console.log({socketdata:data})
-            if(data.event !== "ticks") return
-            if (data.data.symbol) {
-              // Get the existing row by ID
-              const rowNode = api.getRowNode(data.data.symbol);
-              if (rowNode) {
-                const prevBid = rowNode.data.bid; 
+        const data = JSON.parse(event.data)
+        if (data.event !== "ticks") return
+
+        // Don't update instruments during drag operations to prevent conflicts
+        if (!isDragging) {
+          setInstruments((prev) =>
+            prev.map((item) => {
+              if (item.symbol === data.data.symbol) {
+                const prevBid = item.bid
                 const newBid = data.data.bid
-                let signal = "neutral";
+                let signal = "neutral"
                 if (prevBid) {
-                   if (newBid > prevBid) signal = "up";
-                   else if (newBid < prevBid) signal = "down"; }
-                rowNode.setDataValue("bid", data.data.bid);
-                rowNode.setDataValue("ask", data.data.ask);
-                rowNode.setDataValue("signal", signal);
-              }else{
-                console.log("row does not exist")
+                  if (newBid > prevBid) signal = "up"
+                  else if (newBid < prevBid) signal = "down"
+                }
+                return { ...item, bid: newBid, ask: data.data.ask, signal }
               }
+              return item
+            })
+          )
+        }
 
-              // console.log({selectedSymbolRef:selectedSymbolRef.current,data:data.data})
-              if(data.data.symbol == selectedSymbolRef.current){
-                dispatch(updateTicksAction(data.data))
-              }
-            }
+        if (data.data.symbol === selectedSymbol) {
+          dispatch(updateTicksAction(data.data))
+        }
       } catch (err) {
-        console.error("Invalid WS message:", event.data ,err);
+        console.error("Invalid WS message:", event.data, err)
       }
-    };
-
-    socketInstance?.addEventListener("message", handleMessage);
-
-    return () => {
-      socketInstance?.removeEventListener("message", handleMessage);
-    };
-  }, [socket.current]);
-
-  
-  // const filteredInstruments = useMemo(() => {
-  //   return instruments.filter((instrument) =>
-  //     instrument.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-  //   );
-  // }, [instruments, searchTerm]);
-
-  // useEffect(() => {
-  //   if (!gridRef.current || !gridRef.current.api || !selectedSymbol) return;
-  
-  //   const api = gridRef.current.api;
-  
-  //   api.deselectAll();
-  
-  //   let selectedRowIndex = -1;
-  
-  //   api.forEachNode((node) => {
-  //     if (node.data.symbol === selectedSymbol) {
-  //       node.setSelected(true);
-  //       selectedRowIndex = node.rowIndex; // remember the index
-  //     }
-  //   });
-  
-  //   // Scroll to selected row (Community edition)
-  //   if (selectedRowIndex >= 0) {
-  //     api.ensureIndexVisible(selectedRowIndex, "middle"); // scrolls row into view
-  //   }
-  // }, [selectedSymbol, filteredInstruments]);
-
-  const onRowClicked = useCallback(
-    (event) => {if (
-      event.event?.target?.closest("button") &&
-      event.event.target.innerText.toLowerCase().includes("delete")
-    ) {
-      return;
     }
-      const symbol = event.data.symbol
-      selectedSymbolRef.current=symbol
-      dispatch(selectedSymbolAction(symbol))
-      onSymbolSelect?.(symbol)
-    },
-    [onSymbolSelect]
-  )
 
-  const onGridReady = useCallback((params) => {
-    params.api.sizeColumnsToFit()
-  }, [])
+    socketInstance.addEventListener("message", handleMessage)
+    return () => socketInstance.removeEventListener("message", handleMessage)
+  }, [ticksSocket, dispatch, selectedSymbol, isDragging])
 
-  const [loading, setLoading] = useState(true);
-
+  // ---- Fetch all symbols ----
   useEffect(() => {
-    // Replace with your actual API endpoint
     const fetchSymbols = async () => {
       try {
-        const res = await GET_SYMBOL_API(); // or your endpoint
-        console.log(res)
-        const symbolsArray=  res.data.result?.data || []; // expect: ["BTC", "ETH", "XAU/USD", ...]
-
-        setAllSymbols(symbolsArray)
-       
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch symbols:", error);
-        setLoading(false);
-      }
-    };
-
-    fetchSymbols();
-  }, []);
-  useEffect(() => {
-    const fetchSelected = async () => {
-      setLoading(true)
-      try {
-        const res = await GET_SELECTED_SYMBOLS_API() // returns array of symbols
-        const selected = res.data.result || []
-console.log({selected})
-        // setSelectedSymbols(selected.map(item => item.instrument))
-        
-        const initialInstruments = selected.map((symbolObj, index) => ({
-          id: (index + 1).toString(),
-          symbol:symbolObj.instrument,
-          signal: "neutral",
-          bid:symbolObj.bid,
-          ask: symbolObj.ask,
-        }))
-        console.log({initialInstruments})
-        setInstruments(initialInstruments)
+        const res = await GET_SYMBOL_API()
+        setAllSymbols(res.data.result?.data || [])
       } catch (err) {
-        console.error("Failed to fetch selected symbols", err)
+        console.error("Failed to fetch symbols:", err)
       } finally {
         setLoading(false)
       }
     }
+    fetchSymbols()
+  }, [])
+
+  // ---- Fetch favorites ----
+  const fetchSelected = async () => {
+    setLoading(true)
+    try {
+      const res = await GET_SELECTED_SYMBOLS_API()
+      const selected = res.data.result || []
+      const initial = selected.map((s, i) => ({
+        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
+        symbol: s.instrument,
+        signal: "neutral",
+        bid: s.bid,
+        ask: s.ask,
+      }))
+      setInstruments(initial)
+      if (initial.length > 0 && !selectedSymbol) {
+        setSelectedSymbol(initial[0].symbol)
+        dispatch(selectedSymbolAction(initial[0].symbol))
+      }
+    } catch (err) {
+      console.error("Failed to fetch selected symbols", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchSelected()
   }, [])
- 
+
+  // ---- Save to Redux ----
   useEffect(() => {
-    const socketInstance = socket.current;
-    if (!socketInstance || instruments.length === 0) return;
-  
-    if (socketInstance.readyState === WebSocket.OPEN) {
-      sendMessage({
-        event: "subscribe",
-        stream: "ticks",
-        symbols: instruments.map(item => item.symbol),
-      });
-    } else {
-      // wait for socket to open
-      const handleOpen = () => {
-        sendMessage({
-          event: "subscribe",
-          stream: "ticks",
-          symbols: instruments.map(item => item.symbol),
-        });
-        socketInstance.removeEventListener("open", handleOpen);
-      };
-      socketInstance.addEventListener("open", handleOpen);
+    if (instruments.length > 0) {
+      dispatch(updateMandetorySymbols(instruments.map((i) => i.symbol)))
     }
-  }, [socket.current, instruments]);
-  
+  }, [instruments, dispatch])
+
+  // ---- Add Symbols ----
   const handleSubmit = async () => {
     setPosting(true)
     try {
-
-      let prevSymbols = instruments?.map(item=>item.symbol)
-        let payload = {
-            "event":"create",
-            "data":{
-                    "symbols": [...selectedSymbols,...prevSymbols]
-                }
-        }
-
-      let response = await POST_SELECTED_SYMBOLS_API(payload) // send array
-      // Update instruments table based on selection
-      const selectedInstruments = response.data.result.instruments || []
-      const newInstruments = selectedInstruments.map((symbolObj, index) => {
-        return  {
-          id: (index + 1).toString(),
-          symbol:symbolObj.instrument,
-          signal: "neutral",
-          bid: symbolObj.bid,
-          ask: symbolObj.ask,
-        }
-      })
-      setInstruments(newInstruments)
+      const prevSymbols = instruments.map((i) => i.symbol)
+      const payload = {
+        event: "create",
+        data: { symbols: [...selectedSymbols, ...prevSymbols] },
+      }
+      const response = await POST_SELECTED_SYMBOLS_API(payload)
+      const updated = response.data.result.instruments.map((s, i) => ({
+        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
+        symbol: s.instrument,
+        signal: "neutral",
+        bid: s.bid,
+        ask: s.ask,
+      }))
+      setInstruments(updated)
       setSelectedSymbols([])
     } catch (err) {
-      console.error("Failed to save selected symbols", err)
+      console.error("Failed to save symbols", err)
     } finally {
       setPosting(false)
     }
   }
 
-  if (loading) return <CircularProgress />;
+  // ---- Filter ----
+  const handleTypeChange = async (value) => {
+    setFilterType(value)
+    if (value === "") return fetchSelected()
+
+    setPosting(true)
+    try {
+      const response = await GET_SELECTED_TYPES_SYMBOLS_API(value)
+      const newInstruments = response.data.result.map((s, i) => ({
+        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
+        symbol: s.instrument,
+        signal: "neutral",
+        bid: s.bid,
+        ask: s.ask,
+      }))
+      setInstruments(newInstruments)
+      if (newInstruments.length > 0) {
+        setSelectedSymbol(newInstruments[0].symbol)
+        dispatch(selectedSymbolAction(newInstruments[0].symbol))
+      }
+    } catch (err) {
+      console.error("Failed to fetch instruments", err)
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  // ---- Delete ----
+  const handleDelete = async (instrument) => {
+    try {
+      const updated = instruments.filter((i) => i.symbol !== instrument.symbol)
+      setInstruments(updated)
+      await POST_SELECTED_SYMBOLS_API({
+        event: "create",
+        data: { symbols: updated.map((i) => i.symbol) },
+      })
+    } catch (err) {
+      console.error("Delete failed", err)
+    }
+  }
+
+  // ---- Select ----
+  const handleSelect = useCallback((symbol) => {
+    console.log("Instrument selected:", symbol)
+    setSelectedSymbol(symbol)
+    dispatch(selectedSymbolAction(symbol))
+  }, [dispatch])
+
+  // ---- Drag Handlers ----
+  const handleDragStart = useCallback((event) => {
+    setActiveId(event.active.id)
+    setIsDragging(true)
+  }, [])
+
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event
+
+    setActiveId(null)
+    setIsDragging(false)
+
+    if (!over || active.id === over.id) return
+
+    setInstruments((prev) => {
+      const oldIndex = prev.findIndex((i) => i.id === active.id)
+      const newIndex = prev.findIndex((i) => i.id === over.id)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newArray = arrayMove(prev, oldIndex, newIndex)
+        // Regenerate IDs to prevent duplicates
+        return newArray.map((item, index) => ({
+          ...item,
+          id: `${index + 1}-${item.symbol}`
+        }))
+      }
+      return prev
+    })
+  }, [])
+
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null)
+    setIsDragging(false)
+  }, [])
+
+  // Memoize the sortable items to prevent unnecessary re-renders
+  const sortableItems = useMemo(() =>
+    instruments.map((i) => i.id),
+    [instruments]
+  )
+
+
+
+
+
+  if (loading) return <CircularProgress />
+
   return (
-    <div className="w-full h-full flex flex-col border-r border-slate-700">
+    <div className="w-full h-full flex flex-col bg-slate-900 border-r border-slate-700">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700">
         <h2 className="text-sm font-medium text-slate-300 tracking-wide">
           INSTRUMENTS
         </h2>
-        
       </div>
 
-      {/* Search */}
-      {/* <div className="p-4 border-b border-slate-700">
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-slate-600 text-white placeholder:text-slate-400 focus:border-slate-500 focus:ring-slate-500"
+      {/* Symbol selection */}
+      {filterType === "" && (
+        <div className="m-2 mb-1 flex gap-2 items-center">
+          <Autocomplete
+            multiple
+            options={allSymbols}
+            value={selectedSymbols}
+            size="small"
+            onChange={(_, val) => setSelectedSymbols(val)}
+            renderInput={(params) => (
+              <TextField {...params} label="Select Symbols" />
+            )}
+            className="flex-1"
           />
+          <Button variant="outlined" onClick={handleSubmit} disabled={posting}>
+            {posting ? "Saving..." : "Submit"}
+          </Button>
         </div>
-      </div> */}
+      )}
 
-      <div className="mb-2 flex gap-2 items-center">
-        <Autocomplete
-          multiple
-          options={allSymbols}
-          value={selectedSymbols}
-          onChange={(e, val) => setSelectedSymbols(val)}
-          renderInput={(params) => <TextField {...params} label="Select Symbols" />}
-          className="flex-1"
-        />
-        <Button variant="outlined" onClick={handleSubmit} disabled={posting}>
-          {posting ? "Saving..." : "Submit"}
-        </Button>
+      {/* Filter Dropdown */}
+      <Autocomplete
+        options={Object.entries(FILTER_TYPE).map(([label, value]) => ({
+          label,
+          value,
+        }))}
+        getOptionLabel={(option) => option.label}
+        value={
+          filterType
+            ? {
+                label: Object.keys(FILTER_TYPE).find(
+                  (k) => FILTER_TYPE[k] === filterType
+                ),
+                value: filterType,
+              }
+            : { label: "Favorites", value: "" }
+        }
+        className="m-2 mt-1"
+        size="small"
+        style={{ width: "calc(100% - 16px)" }}
+        onChange={(_, val) => handleTypeChange(val?.value || "")}
+        renderInput={(params) => <TextField {...params} />}
+        disableClearable
+      />
+
+      {/* Table Header */}
+      <div
+        className="grid gap-4 px-2 py-2 bg-slate-800 border-b border-slate-700"
+        style={{ gridTemplateColumns: GRID_LAYOUT }}
+      >
+        <div className="text-slate-400 text-xs font-medium">Symbol</div>
+        <div className="text-slate-400 text-xs font-medium text-center">Signal</div>
+        <div className="text-slate-400 text-xs font-medium text-right">Bid</div>
+        <div className="text-slate-400 text-xs font-medium text-right">Ask</div>
       </div>
 
-      {/* Grid */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full w-full ag-theme-quartz">
-          <AgGridReact
-            ref={gridRef}
-            rowData={instruments}
-            getRowId={(params) => params.data.symbol}
-            columnDefs={columnDefs}
-            onGridReady={onGridReady}
-            onRowClicked={onRowClicked}
-            rowSelection="single"
-            context={{ instruments, setInstruments }}
-            frameworkComponents={{ deleteButtonRenderer: DeleteButtonRenderer }}
-            theme={themeQuartz.withParams({
-                backgroundColor: muiTheme.palette.background.default,      // bg-slate-900
-                foregroundColor: "#e2e8f0",      // text-slate-200
-                headerBackgroundColor: "#1e293b",// bg-slate-800
-                headerTextColor: "#94a3b8",      // text-slate-400
-                borderColor: "#334155",          // border-slate-700
-                rowHoverColor: "#1e293b",        // hover:bg-slate-800
-                selectedRowBackgroundColor: "#1e293b", // bg-slate-700
-                spacing: 2
-              })}
-            suppressRowClickSelection={false}
-            headerHeight={35}
-            rowHeight={30}
-            animateRows={true}
-            suppressRowHoverHighlight={false}
-            suppressMenuHide={true}
-            suppressContextMenu={true}
-          />
-        </div>
+      {/* Rows with Drag & Drop */}
+      <div className="flex-1 overflow-y-auto">
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext
+            items={sortableItems}
+            strategy={verticalListSortingStrategy}
+          >
+            {instruments.map((instrument) => (
+              <SortableInstrumentRow
+                key={instrument.id}
+                instrument={instrument}
+                isSelected={selectedSymbol === instrument.symbol}
+                onSelect={handleSelect}
+                onDelete={handleDelete}
+              />
+            ))}
+          </SortableContext>
+          <DragOverlay
+            dropAnimation={{
+              sideEffects: defaultDropAnimationSideEffects({
+                styles: {
+                  active: {
+                    opacity: "0.5",
+                  },
+                },
+              }),
+            }}
+          >
+            {activeId ? (
+              <div className="bg-slate-800 border border-slate-600 rounded shadow-lg">
+                <InstrumentRow
+                  instrument={instruments.find(i => i.id === activeId)}
+                  isSelected={false}
+                  isDragging={true}
+                  onSelect={handleSelect}
+                  onDelete={handleDelete}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
   )

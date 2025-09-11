@@ -21,6 +21,8 @@ import { GET_CLIENT_DETAILS_API, LOGIN_USER_API } from "../../API/ApiServices";
 import { loginAction } from "../../redux/authSlice";
 import { useDispatch } from "react-redux";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { showSnackbar } from "../../redux/snackbarslice";
+import Logo from "@/assets/Img/CFDUP_Logo_noBackground.png";
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -29,6 +31,7 @@ export default function Login() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage,setErrorMessage] = useState("")
 
   const handleClickShowPassword = () => {
     setShowPassword((prev) => !prev);
@@ -65,7 +68,7 @@ export default function Login() {
       //   body: JSON.stringify(payload),
       // });
       const userLogin =await LOGIN_USER_API(payload)
-      console.log(userLogin)
+      console.log("login res",userLogin)
       if(userLogin.status == 200 && userLogin.data.status == 'success'){
         const clientDetails= await GET_CLIENT_DETAILS_API(userLogin.data.result)
 
@@ -80,6 +83,9 @@ export default function Login() {
       
       console.info("Login Attempted. Check console for payload.");
     } catch (error) {
+      setErrorMessage(error?.response?.data?.reason)
+        // dispatch(showSnackbar({ message: error?.response?.data?.reason, severity: "error" }));
+      console.log("login res",error.response)
       console.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
@@ -117,10 +123,10 @@ export default function Login() {
           title={
             <Box display="flex" justifyContent="center" mb={1}>
               <img
-                src="/sgfx-logo.png"
+                src={Logo}
                 alt="SGFX Logo"
-                width={80}
-                height={26}
+               
+                style={{height:'80px'}}
               />
             </Box>
           }
@@ -180,6 +186,15 @@ export default function Login() {
               {isLoading ? <CircularProgress size={24} color="inherit" /> : "Sign In"}
             </Button>
           </form>
+          {errorMessage !== "" && <Typography
+            variant="body2"
+            color="error"
+            align="center"
+            sx={{ mt: 2 }}
+          >
+           {errorMessage}
+           
+          </Typography>}
           <Typography
             variant="body2"
             color="text.secondary"

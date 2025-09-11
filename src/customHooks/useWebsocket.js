@@ -36,13 +36,13 @@ export function useWebSocket(url) {
         console.log("❌ Disconnected")
 
       // Reconnect if not closed manually
-    //   if (!manuallyClosed.current) {
-    //     const timeout = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
-    //     reconnectTimeoutRef.current = setTimeout(() => {
-    //       reconnectAttempts.current += 1;
-    //       connect();
-    //     }, timeout);
-    //   }
+      if (!manuallyClosed.current) {
+        const timeout = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttempts.current += 1;
+          connect();
+        }, timeout);
+      }
     };
   }, [url]);
 
@@ -50,7 +50,7 @@ export function useWebSocket(url) {
     connect();
 
     return () => {
-      manuallyClosed.current = true;
+      // manuallyClosed.current = true;
       clearTimeout(reconnectTimeoutRef.current);
     //   socketRef.current?.close();
     };

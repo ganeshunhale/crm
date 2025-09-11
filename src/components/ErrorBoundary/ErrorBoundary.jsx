@@ -36,7 +36,7 @@ export default function ErrorBoundary({ error }) {
       {error && (
         <pre
           onClick={() => setIsOpen(!isOpen)}
-          className="relative bg-[#FFF2F0] w-[90%] p-4 text-left text-sm mt-4 cursor-pointer"
+          className="relative bg-[#FFF2F0] text-red-500 w-[90%] p-4 text-left text-sm mt-4 cursor-pointer"
         >
           <LoopIcon
             style={{

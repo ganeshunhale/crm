@@ -111,6 +111,14 @@ export const GET_SELECTED_SYMBOLS_API = async () => {
   const response = await createAPI.get("instruments/")
   return response;
 }
+export const GET_SELECTED_TYPES_SYMBOLS_API = async (data) => {
+  const response = await createAPI.get("/instruments/favourites/",{
+    params: {
+      filter: data, 
+    },
+  })
+  return response;
+}
 
 export const GET_ACCESS_TOKEN_API = async (data) => {
   const response = await createAPI.post("accounts/token/refresh/", data)
@@ -163,6 +171,9 @@ export const EDIT_PENDING_ORDER = async(data) =>{
 }
 export const GET_ACCOUNT_DETAILS = async() => {
   const response = await createAPI.get(`trade/account-details/`);
-  console.log("api response",response)
   return response;
+}
+export const ADD_DEMO_BALANCE = async(payload) =>{
+ const response = await createMT5API.post(`/trade/set-demo-balance/`,payload)
+ return response
 }

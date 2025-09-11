@@ -9,7 +9,8 @@ function App() {
   const LayOutPage = lazy(() => import('./pages/LayOut'));
   const Login = lazy(() => import('./pages/Login/Login'));
   const Register = lazy(() => import('./pages/Register/Register'));
-  const TestPage = lazy(() => import('./pages/Payment'));
+  const SummaryPage = lazy(() => import('./sections/Trading/Summary'));
+  const AccountPage = lazy(() => import('./sections/Trading/Accounts'));
   return (
     // <AuthProvider>
     <>
@@ -27,8 +28,9 @@ function App() {
               <Dashboard />
             }
           />
-          <Route path="/dashboard/lay-out/" element={<LayOutPage />}>
-            <Route path="accounts" element={<TestPage />} />
+          <Route path="/dashboard/lay-out" element={<LayOutPage />}>
+            <Route path="accounts" element={<AccountPage />} />
+              <Route path="summary" element={<SummaryPage />} />
           </Route>
         </Route>
       </Routes>

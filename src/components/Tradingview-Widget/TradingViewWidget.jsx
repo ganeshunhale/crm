@@ -1,14 +1,14 @@
 // TradingViewWidget.jsx
-import React, { useEffect, useRef } from "react";
+import React, { memo, use, useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 
-export default function TradingViewWidget({
-  symbol = "OANDA:XAUUSD",
+function TradingViewWidget({
   theme = "dark",
   interval = "D",
   watchlist = ["OANDA:XAUUSD", "TVC:GOLD"],
 }) {
   const containerRef = useRef(null);
-
+const symbol = useSelector(state => state.tradeposition.selectedSymbol)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -106,3 +106,4 @@ export default function TradingViewWidget({
     
   );
 }
+export default memo(TradingViewWidget);

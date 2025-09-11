@@ -16,3 +16,20 @@ body,
   flex: 1;
   height: 100%;
 } */
+
+.gutter {
+  background-color: #334155; 
+  background-clip: padding-box;
+}
+
+.gutter.gutter-vertical {
+  cursor: row-resize;
+}
+
+.gutter.gutter-horizontal {
+  cursor: col-resize;
+}
+
+.gutter:hover {
+  background-color: #64748b; 
+}

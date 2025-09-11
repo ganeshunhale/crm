@@ -9,7 +9,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { Box, IconButton, InputAdornment, Typography } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close"
 import { EDIT_OPEN_ORDER, EDIT_PENDING_ORDER } from '../../API/ApiServices';
-import { useSelector } from "react-redux"
+import { useDispatch, useSelector } from "react-redux";
+import { fetchOpenPositions, fetchPendingOrders } from '../../redux/positionSlice';
+import { showSnackbar } from '../../redux/snackbarslice';
 
 const ORDER_TYPE_CONSTANT = {
     0: "Buy",
@@ -21,10 +23,10 @@ const ORDER_TYPE_CONSTANT = {
     6: "Buy_stop_limit",
     7: "Sell_stop_limit",
     8: "Close_by"
-  }
+}
 
-export default function PositionDialog({ onOpen, onClose, editData, setEditData, activeTab, getPositions }) {
-
+export default function PositionDialog({ onOpen, onClose, editData, setEditData, activeTab }) {
+    const dispatch = useDispatch()
     const [tP, setTP] = useState(0)
     const [sl, setSl] = useState(0)
     const [openPrice, setOpenPrice] = useState(0)
@@ -54,7 +56,9 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
             try {
                 const res = await EDIT_PENDING_ORDER(data)
                 if (res.status === 200) {
-                    getPositions(demo_id)
+
+                    dispatch(fetchPendingOrders(demo_id));
+                    dispatch(showSnackbar({ message: `Order #${editData?.order_id} for ${editData?.symbol} updated successfully!`, severity: "success" }));
                     handleClose()
                 }
             } catch (error) {
@@ -73,7 +77,8 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
             try {
                 const res = await EDIT_OPEN_ORDER(data)
                 if (res.status === 200) {
-                    getPositions(demo_id)
+                    dispatch(showSnackbar({message: `Position #${editData?.positionId} for ${editData?.symbol} updated successfully!`, severity: "success" }));
+                    dispatch(fetchOpenPositions(demo_id));
                     handleClose()
                 }
             } catch (error) {
@@ -85,10 +90,10 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
     };
 
     const getReadableType = (type) => {
-    if (typeof type === "number") return ORDER_TYPE_CONSTANT[type] || "Unknown";
-    if (typeof type === "string") return type;
-    return "Unknown";
-  };
+        if (typeof type === "number") return ORDER_TYPE_CONSTANT[type] || "Unknown";
+        if (typeof type === "string") return type;
+        return "Unknown";
+    };
 
     const handleReset = () => {
         setTP(editData.tp)

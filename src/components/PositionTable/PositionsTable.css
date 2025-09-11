@@ -19,8 +19,8 @@
   
   /* Tab buttons */
   .tab-button {
-    padding: 12px 16px;
-    font-size: 0.875rem; /* text-sm */
+    padding: 5px 16px;
+    font-size: 0.775rem; /* text-sm */
     font-weight: 500;
     text-transform: capitalize;
     border-bottom: 2px solid transparent;

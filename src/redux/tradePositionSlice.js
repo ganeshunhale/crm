@@ -2,7 +2,8 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = { 
     selectedSymbol:"",
- selectedSymbolData:{}
+ selectedSymbolData:{},
+ allMandetorySymbols:[]
 };
 
 const tradePositionSlice = createSlice({
@@ -17,10 +18,14 @@ const tradePositionSlice = createSlice({
         console.log("tick updatecalled...")
       state.selectedSymbolData = action.payload
     },
-
+    updateMandetorySymbols:(state,action)=>{
+      state.allMandetorySymbols = [
+        ...new Set([...state.allMandetorySymbols, ...action.payload])
+      ];
+    }
     
   },
 });
 
-export const { selectedSymbolAction,updateTicksAction } = tradePositionSlice.actions;
+export const { selectedSymbolAction,updateTicksAction ,updateMandetorySymbols} = tradePositionSlice.actions;
 export default tradePositionSlice.reducer;

@@ -17,7 +17,7 @@ export default function GlobalSnackbar() {
     return (
         <Snackbar
             open={open}
-            autoHideDuration={4000}
+            autoHideDuration={3000}
             onClose={handleClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // position
         >
@@ -28,9 +28,12 @@ export default function GlobalSnackbar() {
                 sx={{
                     width: "100%", color: "white",
                     fontWeight: "bold",
+                    backgroundColor:"rgba(127, 132, 138, 0.5)"
                 }}
             >
-                {message}
+                <div style={{ whiteSpace: "pre-line" }}>
+                    {message}
+                </div>
             </Alert>
         </Snackbar>
     );

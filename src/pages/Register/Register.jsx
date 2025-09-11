@@ -1,6 +1,7 @@
 import { memo, useState } from "react"
 import { data, Link, useNavigate } from "react-router-dom"
 import { REGISTER_MT5_USER_API, REGISTER_USER_API } from "../../API/ApiServices"
+import Logo from "@/assets/Img/CFDUP_Logo_noBackground.png";
 export default function Register() {
 
   console.log("ho")
@@ -87,7 +88,7 @@ export default function Register() {
   }
 
   return (
-    <div className="h-screen overflow-hidden
+    <div className=" overflow-hidden
      bg-gray-900 text-white p-8">
       {/* Toast Notification */}
       {toast && (
@@ -106,7 +107,7 @@ export default function Register() {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
-              <img src="/sgfx-logo.png" alt="SGFX Logo" width={120} height={40} className="h-12 w-auto" />
+              <img src={Logo} alt="SGFX Logo" width={120} style={{height:'100px'}} className="h-14 w-auto" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Create Trading Account</h1>
             <p className="text-gray-400">Join thousands of professional traders</p>
@@ -262,7 +263,7 @@ export default function Register() {
           <div className="text-center mt-6">
             <p className="text-gray-400">
               Already have an account?{" "}
-              <Link to="/login" className="text-green-500 hover:text-green-400 hover:underline transition-colors">
+              <Link to="/" className="text-green-500 hover:text-green-400 hover:underline transition-colors">
                 Sign in here
               </Link>
             </p>

@@ -41,7 +41,66 @@ const positionSlice = createSlice({
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    addOpenPosition: (state, action) => {
+      state.open.push(action.payload);
+    },
+    deleteOpenPosition: (state, action) => {
+      state.open = state.open.filter(
+        (pos) => pos.positionId !== action.payload
+      );
+    },
+    // WebSocket real-time actions
+    wsAddPosition: (state, action) => {
+      const newPosition = action.payload;
+      // Check if position already exists to avoid duplicates
+      const existingIndex = state.open.findIndex(
+        (pos) => pos.positionId === newPosition.positionId
+      );
+      if (existingIndex === -1) {
+        state.open.push(newPosition);
+      }
+    },
+    wsRemovePosition: (state, action) => {
+      const positionId = action.payload;
+      state.open = state.open.filter(
+        (pos) => pos.positionId !== positionId
+      );
+    },
+    wsUpdatePosition: (state, action) => {
+      const updatedPosition = action.payload;
+      const index = state.open.findIndex(
+        (pos) => pos.positionId === updatedPosition.positionId
+      );
+      if (index !== -1) {
+        // Update existing position with new data, ensuring we trigger re-renders
+        state.open[index] = {
+          ...state.open[index],
+          ...updatedPosition,
+          // Add timestamp to ensure re-render
+          lastUpdated: Date.now()
+        };
+      }
+    },
+    wsSyncPosition: (state, action) => {
+      const syncData = action.payload;
+      const index = state.open.findIndex(
+        (pos) => pos.positionId === syncData.positionId
+      );
+      if (index !== -1) {
+        // Sync position with server data
+        state.open[index] = { ...state.open[index], ...syncData };
+      } else {
+        // If position doesn't exist, add it
+        state.open.push(syncData);
+      }
+    },
+    // Bulk update for initial WebSocket sync
+    wsSetPositions: (state, action) => {
+      state.open = action.payload;
+    },
+
+  },
 
   extraReducers: (builder) => {
     builder
@@ -88,5 +147,14 @@ const positionSlice = createSlice({
       });
   },
 });
+export const {
+  addOpenPosition,
+  deleteOpenPosition,
+  wsAddPosition,
+  wsRemovePosition,
+  wsUpdatePosition,
+  wsSyncPosition,
+  wsSetPositions,
+} = positionSlice.actions;
 
 export default positionSlice.reducer;

@@ -5,6 +5,7 @@ import authSlice from "./authSlice"
 import tradePositionSlice from "./tradePositionSlice"
 import snackbarReducer from "./snackbarslice";
 import positionReducer from "./positionSlice";
+import { createWebSocketMiddleware } from "./websocketMiddleware";
 
 const authPersistConfig = {
   key: "auth",
@@ -26,7 +27,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER], // ignore redux-persist internal actions
       },
-    }),
+    }).concat(createWebSocketMiddleware()),
 });
 
 export const persistor = persistStore(store);
