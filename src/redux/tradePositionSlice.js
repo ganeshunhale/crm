@@ -1,9 +1,14 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const eqSet = (xs, ys) => xs.size === ys.size && [...xs].every((x) => ys.has(x));
+
 const initialState = { 
-    selectedSymbol:"",
- selectedSymbolData:{},
- allMandetorySymbols:[]
+  selectedSymbol:"",
+  selectedSymbolData:{},
+  allMandetorySymbols:[],
+
+  marketWatchSymbols: [],
+  positionSymbols: [],
 };
 
 const tradePositionSlice = createSlice({
@@ -11,21 +16,31 @@ const tradePositionSlice = createSlice({
   initialState,
   reducers: {
     selectedSymbolAction : (state,action)=>{
-        console.log("symbol selected...")
-    state.selectedSymbol =action.payload
+      state.selectedSymbol =action.payload
     },
     updateTicksAction: (state,action) => { 
-        console.log("tick updatecalled...")
-      state.selectedSymbolData = action.payload
+      state.selectedSymbolData = state.selectedSymbolData.symbol==action.payload.symbol?{...state.selectedSymbolData,...action.payload}:action.payload
     },
-    updateMandetorySymbols:(state,action)=>{
-      state.allMandetorySymbols = [
-        ...new Set([...state.allMandetorySymbols, ...action.payload])
-      ];
+    updateMarketWatchSymbols: (state, action) => {
+      const newSet = new Set(action.payload);
+      const oldSet = new Set(state.marketWatchSymbols);
+
+      if (!eqSet(oldSet, newSet)) {
+        state.marketWatchSymbols = [...newSet];
+        state.allMandetorySymbols = [ ...new Set([...state.marketWatchSymbols, ...state.positionSymbols]) ];
+      }
+    },
+    updatePositionSymbols: (state, action) => {
+      const newSet = new Set(action.payload);
+      const oldSet = new Set(state.positionSymbols);
+
+      if (!eqSet(oldSet, newSet)) {
+        state.positionSymbols = [...newSet];
+        state.allMandetorySymbols = [ ...new Set([...state.marketWatchSymbols, ...state.positionSymbols]) ];
+      }
     }
-    
   },
 });
 
-export const { selectedSymbolAction,updateTicksAction ,updateMandetorySymbols} = tradePositionSlice.actions;
+export const { selectedSymbolAction,updateTicksAction ,updateMarketWatchSymbols, updatePositionSymbols} = tradePositionSlice.actions;
 export default tradePositionSlice.reducer;

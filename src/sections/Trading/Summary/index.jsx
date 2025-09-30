@@ -1,15 +1,15 @@
-import { useState, useMemo } from "react";
-import { Box, Typography, Tabs, Tab, Card, CardContent, Button, Stack, Grid, Container, useTheme } from "@mui/material";
-import CustomAccordion from "../../../components/Accordian";
-import { AgGridReact } from "ag-grid-react"; // Make sure AG Grid is installed
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-quartz.css";
+import { useState, useEffect } from "react";
+import { Box, Typography, Tabs, Tab, Stack, Grid, Container, useTheme, Chip } from "@mui/material";
 import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
-import OutlinedInput from '@mui/material/OutlinedInput';
 import MenuItem from '@mui/material/MenuItem';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
+import OrderHistoryTable from "../History";
+import { useNavigate } from "react-router-dom";
+import { GET_ACCOUNT_SUMMARY_API } from "../../../API/ApiServices";
+import { useLocation } from 'react-router-dom';
+import { useSelector,useDispatch } from "react-redux";
+import { updateActiveId } from "../../../redux/authSlice";
+import { DATES } from "../../../contants";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -22,19 +22,6 @@ const MenuProps = {
     },
 };
 
-const names = [
-    'Oliver Hansen',
-    'Van Henry',
-    'April Tucker',
-    'Ralph Hubbard',
-    'Omar Alexander',
-    'Carlos Abbott',
-    'Miriam Wagner',
-    'Bradley Wilkerson',
-    'Virginia Andrews',
-    'Kelly Snyder',
-];
-
 function getStyles(name, personName, muiTheme) {
     return {
         fontWeight: personName.includes(name)
@@ -43,118 +30,127 @@ function getStyles(name, personName, muiTheme) {
     };
 }
 
-
 const Summary = () => {
-
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
     const muiTheme = useTheme()
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState("summary");
-    const [personName, setPersonName] = useState([]);
+    const [selectedDays, setSelectedDays] = useState(1);
+    const [summaryData, setSummaryData] = useState({})
+    const isLoggedIn = useSelector(state => state.auth)
+    const [historyType, setHistoryType] = useState('')
+    const [formateDate, setFormateDate] = useState({})
 
-    const handleTabChange = (event, newValue) => {
-        setActiveTab(newValue);
-    };
+    const Types = [
+        ...isLoggedIn.data.client_MT5_id.real_ids.map(id => ({ id, type: 'Real' })),
+        ...isLoggedIn.data.client_MT5_id.demo_ids.map(id => ({ id, type: 'Demo' })),
 
-    const handleChange = (event) => {
-        const {
-            target: { value },
-        } = event;
-        setPersonName(
-            // On autofill we get a stringified value.
-            typeof value === 'string' ? value.split(',') : value,
-        );
-    };
-
-    // Mock account details
-    const accountDetails = {
-        summary: { netProfit: "D-123456", currentOrders: "$10,000", tradingValue: "1:100" },
-        historyOfOrders: { netProfit: "R-789012", currentOrders: "$5,000", tradingValue: "1:200" },
-    };
-
-    const rowData = [
-        {
-            symbol: "EURUSD",
-            type: "Buy",
-            volume: 1.5,
-            open_price: 1.1234,
-            tp: 1.1300,
-            sl: 1.1200,
-            positionid: 101234,
-            opentime: "2025-09-11 14:30:00",
-        },
-        {
-            symbol: "USDJPY",
-            type: "Sell",
-            volume: 2.0,
-            open_price: 147.56,
-            tp: 146.00,
-            sl: 148.50,
-            positionid: 101235,
-            opentime: "2025-09-11 15:45:00",
-        },
     ];
 
-    const colDefs = useMemo(() => [
-        { field: "symbol", headerName: "Symbol" },
-        { field: "type", headerName: "Type", maxWidth: 120 },
-        { field: "volume", headerName: "Volume", maxWidth: 120 },
-        { field: "open_price", headerName: "Open Price" },
-        { field: "tp", headerName: "T/P", maxWidth: 100 },
-        { field: "sl", headerName: "S/L", maxWidth: 100 },
-        { field: "positionid", headerName: "Position" },
-        { field: "opentime", headerName: "Open Time" },
-    ], []);
+    const [accountId, setAccountId] = useState(isLoggedIn.data.data.active_id);
+    const handleTabChange = (event, newValue) => {
+        setSelectedDays(1)
+        // 1. Reset the date to last 7 days
+        const defaultDate = getDateRange(1);
+        setFormateDate(defaultDate);
+
+        // 2. Reset accountId to the first item
+        if (Types.length > 0) {
+            setAccountId(Types[0].id);
+        }
+
+        // 3. Set the active tab
+        setActiveTab(newValue);
+
+        // 4. Navigate to the corresponding tab
+        if (newValue === 'summary') {
+            navigate('/dashboard/lay-out/summary');
+        } else {
+            navigate('/dashboard/lay-out/order-history');
+        }
+    };
+
+
+    useEffect(() => {
+        if (location.pathname === '/dashboard/lay-out/summary') {
+            setActiveTab('summary')
+        } else {
+            setActiveTab('historyOfOrders')
+        }
+    }, [location])
+
+    const handleChange = (event) => {
+        setSelectedDays(1);
+        const selectedId = event.target.value;
+        dispatch(updateActiveId(selectedId));
+        setAccountId(selectedId);
+        if (activeTab === "summary") {
+            getSummaryDetails(selectedId);
+        }
+    };
+
+    const getDateRange = (days) => {
+        const to = new Date(); // now
+        const from = new Date();
+        from.setDate(from.getDate() - days); // subtract days
+
+        // Format to "YYYY-MM-DD HH:mm:ss.SSSSSS"
+        const formatDate = (date) =>
+            date.toISOString().replace('T', ' ').replace('Z', '');
+
+        return {
+            from: formatDate(from),
+            to: formatDate(to),
+        };
+    };
+
+    const handleChangeDate = (e) => {
+        const days = Number(e.target.value); // ensure number
+        setSelectedDays(days); // ✅ update select state
+        const formattedDate = getDateRange(days);
+        setFormateDate(formattedDate)
+
+    };
+
+    const getSummaryDetails = async (id) => {
+        try {
+            if (activeTab === "historyOfOrders") return
+            const formattedDate = getDateRange(selectedDays);
+            const payload = {
+                event: "summary-details",
+                data: {
+                    ...formattedDate,
+                    clientId: id,
+                },
+            };
+            const res = await GET_ACCOUNT_SUMMARY_API(payload)
+            if (res.status === 200) {
+                setSummaryData(res.data.result)
+            }
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    useEffect(() => {
+        getSummaryDetails(accountId);
+    }, [selectedDays, accountId]);
+
+    useEffect(() => {
+        const defaultDate = getDateRange(1)
+        setFormateDate(defaultDate)
+    }, [])
 
     return (
         <>
-            <Box
-                sx={{
-                    backgroundColor: "#fff9eb",
-                    width: "100%",
-                    py: 3,
-                }}
-            >
-                <Box
-                    sx={{
-                        maxWidth: "1200px",  // constrain content
-                        mx: "auto",          // center horizontally
-                        px: 3,               // left/right padding
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
-                >
-                    {/* Left text */}
-                    <Typography variant="body1" sx={{ color: "black" }}>
-                        Hello. Fill in your account details to make your first deposit
-                    </Typography>
-                    {/* Right buttons */}
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                        <Button
-                            variant="contained"
-                            size="small"
-                            sx={{ background: '#6c859514', color: 'black', textTransform: 'none', px: 2 }}
-                        >
-                            Learn More
-                        </Button>
-                        <Button
-                            variant="contained"
-                            size="small"
-                            sx={{ backgroundColor: "#ffde02", textTransform: 'none', color: 'black', px: 2 }}
-                        >
-                            Complete Profile
-                        </Button>
-                    </Box>
-                </Box>
-            </Box>
-
-
             <Container>
                 <Box sx={{
                     width: "100%",
                     py: 3,
                 }}>
                     <Typography variant="h5" sx={{ color: 'black', fontWeight: 'bold' }}>
-                        Summary
+                        Trading
                     </Typography>
                 </Box>
 
@@ -164,118 +160,141 @@ const Summary = () => {
                     onChange={handleTabChange}
                     textColor=""
                     indicatorColor="primary"
-                    sx={{ mb: 3, color: 'black' }}
+                    sx={{ color: 'black', borderBottom: '1px solid', borderColor: 'grey.200' }}
                 >
                     <Tab label="Summary" value="summary" />
                     <Tab label="History of order" value="historyOfOrders" />
                 </Tabs>
-                <Box sx={{ color: 'black' }}>
-                    <FormControl sx={{ mt: 2, width: 400 }}>
-                        <InputLabel id="demo-simple-select-label" sx={{ color: 'black' }}>Name</InputLabel>
+                <Box sx={{ color: 'black', py: 2 }}>
+                    <Typography>Account</Typography>
+                    <FormControl sx={{ mt: 2, width: 400 }} size="small">
                         <Select
-                            labelId="demo-simple-select-label"
-                            id="demo-simple-select"
-                            // multiple
-                            value={personName}
+                            labelId="account-label"
+                            id="account-label"
+                            value={accountId}
                             onChange={handleChange}
-                            input={<OutlinedInput label="Name" />}
                             MenuProps={MenuProps}
-                            sx={{ color: 'black', }}
+                            sx={{ color: 'black' }}
+                            renderValue={(selected) => {
+                                const selectedItem = Types.find(item => item.id === selected);
+                                return `MT5 Standard #${selectedItem?.id}`;
+                            }}
                         >
-                            {names.map((name) => (
+                            {Types.map(({ id, type }) => (
                                 <MenuItem
-                                    key={name}
-                                    value={name}
-                                    style={getStyles(name, personName, muiTheme)}
+                                    key={id}
+                                    value={id}
+                                    style={getStyles(id, accountId, muiTheme)}
                                 >
-                                    {name}
+                                    <Stack direction="column">
+                                        <Box sx={{ width: 'fit-content' }}>
+                                            <Chip label={type} size="small" sx={{
+                                                backgroundColor:
+                                                    (type) === 'Real' ? '#FFDE0229' : // blue
+                                                        (type) === 'Demo' ? '#46CD7C29' : // red
+                                                            'default',
+                                                color:
+                                                    (type) === 'Real' ? '#968305ff' : // blue
+                                                        (type) === 'Demo' ? '#055927ff' : // red
+                                                            'default',
+                                            }} />
+                                        </Box>
+                                        <Box p={1}>
+                                            <Typography variant="body1"><span style={{ fontWeight: 'bold' }}>MT5 </span>Standared  #{id} </Typography>
+                                        </Box>
+                                    </Stack>
                                 </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
+                    {(activeTab === "summary" || historyType === "ClosedOrder") && <FormControl sx={{ mt: 2, ml: 2, width: 150 }} size="small">
+                        <Select
+                            labelId="date-label"
+                            id="date-select"
+                            value={selectedDays}
+                            onChange={handleChangeDate}
+                            MenuProps={MenuProps}
+                            sx={{ color: 'black' }}
+                        >
+                            {DATES.map((date) => (
+                                <MenuItem
+                                    key={date.value}
+                                    value={date.value}
+                                >
+                                    {date.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>}
+
                 </Box>
                 {activeTab === "summary" &&
-                    <Grid container spacing={2}>
+                    <Grid container spacing={2} py={2}>
                         {/* Column 1 */}
-                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 200 }}>
+                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 250 }}>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
                                 Net Profit
                             </Typography>
                             <Typography variant="h6" sx={{ color: 'black', fontWeight: 'bold' }}>
-                                4567
+                                {summaryData.netProfit || 0}
                             </Typography>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 5 }}>
-                                Net Profit
+                                Profit {summaryData.profit || 0} USD
                             </Typography>
-                            <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
-                                Net Profitsdf
+                            <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 1 }}>
+                                Loss {summaryData.loss || 0} USD
                             </Typography>
-                            <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
-                                Net Profitsdf
+                            <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 1 }}>
+                                Unrealised P/L {summaryData.unrealised || 0} USD
                             </Typography>
                         </Grid>
 
                         {/* Column 2 */}
-                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 200 }}>
+                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 250 }}>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
-                                Current Orders
+                                Closed Orders
                             </Typography>
                             <Typography variant="h6" sx={{ color: 'black', fontWeight: 'bold' }}>
-                                7000
+                                {summaryData.closedOrderCount || 0}
                             </Typography>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 5 }}>
-                                Net Profit
+                                Profitable {summaryData.profitable || 0}
+                            </Typography>
+                            <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 1 }}>
+                                Unprofitable {summaryData.unprofitable || 0}
                             </Typography>
                         </Grid>
 
                         {/* Column 3 */}
-                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 200 }}>
+                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 250 }}>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
-                                Trading Value
+                                Trading Volume
                             </Typography>
                             <Typography variant="h5" sx={{ color: 'black', fontWeight: 'bold' }}>
-                                2345
+                                {summaryData.tradingVolume || 0} USD
                             </Typography>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 5 }}>
-                                Net Profit
+                                Lifetime {summaryData.lifetime || 0} USD
                             </Typography>
                         </Grid>
 
                         {/* Column 4 */}
-                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 200 }}>
+                        <Grid item xs={12} sm={6} md={3} sx={{ display: "flex", flexDirection: "column", minWidth: 250 }}>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500' }}>
                                 Equity
                             </Typography>
                             <Typography variant="h6" sx={{ color: 'black', fontWeight: 'bold' }}>
-                                56
+                                {summaryData?.equity || 0} USD
                             </Typography>
-                            <Typography variant="body2">
-                                Net Profitg
+                            <Typography variant="body2" sx={{ color: 'grey.500', mt: 5 }}>
+                                {summaryData?.current || 0}  USD
                             </Typography>
                         </Grid>
                     </Grid>}
-
-               <Box className="ag-theme-quartz" sx={{ height: 400, width: "100%", mt: 2 }}>
-                    <AgGridReact
-                        className="ag-theme-quartz"
-                        rowData={rowData}
-                        columnDefs={colDefs}
-                        defaultColDef={{ flex: 1 }}
-                        theme={themeQuartz.withParams({
-                            backgroundColor: muiTheme.palette.background.default,
-                            foregroundColor: "#1f2937",
-                            headerBackgroundColor: "#1f2937",
-                            headerTextColor: "#d1d5db",
-                            borderColor: "#334155",
-                            rowHoverColor: "#374151",
-                            selectedRowBackgroundColor: "#1e293b",
-                            borderRadius: 0,
-                            wrapperBorderRadius: 0,
-                        })}
-                    />
-                </Box>
-
             </Container>
+            {activeTab === "historyOfOrders" && <Box>
+                <OrderHistoryTable accountId={accountId} setHistoryType={setHistoryType} formateDate={formateDate} />
+            </Box>}
         </>
     );
 };

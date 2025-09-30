@@ -6,30 +6,47 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
-import { Box, Grid, IconButton, InputAdornment, List, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, Grid, IconButton, InputAdornment, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close"
-import { EDIT_OPEN_ORDER, EDIT_PENDING_ORDER } from '../../API/ApiServices';
-import { useSelector } from "react-redux"
+import { ADD_DEMO_BALANCE, EDIT_OPEN_ORDER, EDIT_PENDING_ORDER, GET_ACCOUNT_DETAILS } from '../../API/ApiServices';
+import { useSelector, useDispatch } from "react-redux"
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import { showSnackbar } from '../../redux/snackbarslice';
+import { addTradingAccountDetails } from '../../redux/tradingAccoutDetailsSLice';
 
 export default function DepositDialog({ onOpen, onClose }) {
 
-
+    const dispatch = useDispatch()
     const isLoggedIn = useSelector(state => state.auth)
-    const demo_id = isLoggedIn.data.client_MT5_id.demo_id
+    const _id = isLoggedIn?.activeId
 
     const handleSubmit = async () => {
-        window.location.href = '/dashboard/lay-out'
-
-
+        window.location.href = '/dashboard/lay-out/deposit'
     };
-
-    const handleReset = () => {
-
-    }
+    const handleTopUp = async (_id) => {
+        try {
+            const payload = {
+                "event": "symbol_sentiments",
+                "data": {
+                    "clientId": _id,
+                    // "amount": balance
+                }
+            }
+            const res = await ADD_DEMO_BALANCE(payload)
+            console.log("deposit res", res)
+            if (res.status === 200) {
+                const res = await GET_ACCOUNT_DETAILS();
+                dispatch(addTradingAccountDetails(res.data.result));
+                dispatch(showSnackbar({ message: 'balance added success', severity: 'success', backgroundColor: 'grey.800' }))
+                handleClose()
+            }
+        } catch (error) {
+            console.log("err", error)
+        }
+    };
 
     const handleClose = () => {
         onClose(false);
-
     };
 
     return (
@@ -49,46 +66,73 @@ export default function DepositDialog({ onOpen, onClose }) {
                 </DialogTitle>
 
                 <DialogContent>
-                    <DialogContentText mb={2}>
-                        <Grid container spacing={2}>
+                    <DialogContentText>
+                        <Grid container >
                             {/* Left */}
                             <Grid item xs={6}>
-                                <Typography variant="h6" align='left'>Demo</Typography>
+                                <Typography variant="body1" align='left' fontWeight="bold" color='textPrimary'>Demo</Typography>
                                 <List>
                                     <ListItem sx={{ py: 0 }}>
+                                        <ListItemIcon sx={{ minWidth: 24 }}>
+                                            <FiberManualRecordIcon sx={{ fontSize: 10 }} /> {/* Small dot */}
+                                        </ListItemIcon>
                                         <ListItemText primary="Virtual money" />
                                     </ListItem>
+
                                     <ListItem sx={{ py: 0 }}>
+                                        <ListItemIcon sx={{ minWidth: 24 }}>
+                                            <FiberManualRecordIcon sx={{ fontSize: 10 }} />
+                                        </ListItemIcon>
                                         <ListItemText primary="Full access to the terminal" />
                                     </ListItem>
+
                                     <ListItem sx={{ py: 0 }}>
-                                        <ListItemText primary="No withdrawels" color='error.main' />
+                                        <ListItemIcon sx={{ minWidth: 24 }}>
+                                            <FiberManualRecordIcon sx={{ fontSize: 10 }} />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary="No withdrawals"
+                                            primaryTypographyProps={{ color: 'error' }}
+                                        />
                                     </ListItem>
                                 </List>
                             </Grid>
 
                             {/* Right */}
                             <Grid item xs={6}>
-                                <Typography variant="h6" align="left">
+                                <Typography variant="body1" align='left' fontWeight="bold" color='textPrimary'>
                                     Real
                                 </Typography>
                                 <List>
                                     <ListItem sx={{ py: 0 }}>
+                                        <ListItemIcon sx={{ minWidth: 24 }}>
+                                            <FiberManualRecordIcon sx={{ fontSize: 10 }} /> {/* Small dot */}
+                                        </ListItemIcon>
                                         <ListItemText primary="Full access to the terminal" />
                                     </ListItem>
+
+
+
                                     <ListItem sx={{ py: 0 }}>
-                                        <ListItemText primary="instant,automated withdrawels" />
+                                        <ListItemIcon sx={{ minWidth: 24 }}>
+                                            <FiberManualRecordIcon sx={{ fontSize: 10 }} />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary="Instant, automated withdrawals"
+                                            primaryTypographyProps={{ color: 'success' }}
+                                        />
                                     </ListItem>
                                 </List>
                             </Grid>
                         </Grid>
                     </DialogContentText>
 
-
-
                 </DialogContent>
-                <DialogActions p={2}>
-                    <Button onClick={handleSubmit} sx={{ background: '#FFE535', color: 'black' }} variant='contained' fullWidth>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={() => handleTopUp(_id)} sx={{ background: 'grey', color: '#fff', textTransform: 'none', fontWeight: 'bold' }} fullWidth variant='contained' >
+                        Top up demo account
+                    </Button>
+                    <Button onClick={handleSubmit} sx={{ background: '#FFE535', color: 'black', textTransform: 'none', fontWeight: 'bold' }} fullWidth variant='contained' >
                         Deposit on real account
                     </Button>
                 </DialogActions>

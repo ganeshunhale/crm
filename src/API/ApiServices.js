@@ -3,33 +3,37 @@ import { store } from "../redux/store";
 import { getAccessTokenAction, logout } from "../redux/authSlice";
 const url = import.meta.env.VITE_REACT_APP_API_URL;
 const MT5url = import.meta.env.VITE_REACT_APP_MT5_API_URL;
+const COUNTRY_CODE_API_KEY = import.meta.env.VITE_REACT_COUNTRY_CODE_API_KEY
 
 axios.defaults.withCredentials = true;
 axios.defaults.withXSRFToken = true;
 axios.defaults.xsrfHeaderName = "X-CSRFToken"
 axios.defaults.xsrfCookieName = "csrftoken"
 const config = {
-    'Content-Type': 'application/json',
+  'Content-Type': 'application/json',
 }
-const createAPI = axios.create({ baseURL: url ,headers:config})
+const createAPI = axios.create({ baseURL: url, headers: config })
 
-const createMT5API = axios.create({ baseURL: MT5url ,headers:config})
+const createMT5API = axios.create({ baseURL: MT5url, headers: config })
 
-  // ---------------- Attach Token on Requests ----------------
+// ---------------- Attach Token on Requests ----------------
 const attachAuth = (instance) => {
   instance.interceptors.request.use(
     (config) => {
       const state = store.getState();
       const { isLoggedIn, data } = state.auth || {};
+      console.log("config",config)
       if (config.url?.includes("accounts/token/refresh/")) {
         return config;
       }
 
       if (isLoggedIn && data?.access_token) {
+        config.headers["X-USER-ID"] = data.data.active_id || '';
+        config.headers["Activeid"] = data.data.active_id || '';
         config.headers.Authorization = `Bearer ${data.access_token}`;
       } else {
         if (!config.url?.includes("accounts/get-client-details/")) {
-        delete config.headers.Authorization;
+          delete config.headers.Authorization;
         }
       }
 
@@ -64,7 +68,7 @@ const attachRefreshOn401 = (instance) => {
 
             // update redux (you can dispatch an action here)
             store.dispatch(getAccessTokenAction({
-             access_token: newToken 
+              access_token: newToken
             }));
 
             // ✅ Retry the original request with new token
@@ -73,7 +77,7 @@ const attachRefreshOn401 = (instance) => {
           }
         } catch (refreshError) {
           console.error("Token refresh failed", refreshError);
-          store.dispatch(logout()); 
+          store.dispatch(logout());
           // window.location.href = "/login";
         }
       }
@@ -83,25 +87,66 @@ const attachRefreshOn401 = (instance) => {
   );
 };
 
-attachRefreshOn401(createAPI);
+// attachRefreshOn401(createAPI);
 // attachRefreshOn401(createMT5API);
 
+// COUNTRY CODE
+export const GET_COUNTRY_CODE_API = async () => {
+  const response = await fetch("https://api.countrystatecity.in/v1/countries", { headers: { 'X-CSCAPI-KEY': COUNTRY_CODE_API_KEY } })
+  const data = await response.json();
+  return data;
+}
+export const GET_STATES_CODE_API = async (countryCode) => {
+  const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryCode}/states`, { headers: { 'X-CSCAPI-KEY': COUNTRY_CODE_API_KEY } })
+  const data = await response.json();
+  return data;
+}
+export const GET_CITY_CODE_API = async (countryCode, stateCode) => {
+  const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryCode}/states/${stateCode}/cities`, { headers: { 'X-CSCAPI-KEY': COUNTRY_CODE_API_KEY } })
+  const data = await response.json();
+  return data;
+}
 
+// AUTH API
 export const LOGIN_USER_API = async (data) => {
-    const response = await createAPI.post("accounts/login/", data)
-    return response;
+  const response = await createAPI.post("accounts/login/", data)
+  return response;
 }
 export const REGISTER_USER_API = async (data) => {
-    const response = await createAPI.post("accounts/user/", data)
-    return response;
+  const response = await createAPI.post("accounts/user/", data)
+  return response;
 }
 export const REGISTER_MT5_USER_API = async (data) => {
-    const response = await createAPI.post("accounts/create-mt5-user/", data)
-    return response;
+  const response = await createAPI.post("accounts/create-mt5-user/", data)
+  return response;
 }
+export const REGISTER_MT5_LIVE_ACCOUNT_API = async (data) => {
+  const response = await createAPI.post("accounts/create-live-mt5-account/", data)
+  return response;
+}
+export const SET_ACTIVE_ACCOUT = async (userid) => {
+  const response = await createAPI.post("accounts/select-active-account/", {
+    "event": "select-active-account",
+    "data": {
+      "clientId": userid
+    }
+  })
+  return response;
+}
+
+// GET_USER_DETAILS
+export const GET_USER_PROFILE_API = async () => {
+  const response = await createAPI.get("accounts/get-user-details/")
+  return response;
+}
+
 export const GET_CLIENT_DETAILS_API = async (data) => {
-    const response = await createAPI.get("accounts/get-client-details/",{headers:{Authorization: `Bearer ${data.access_token}`}})
-    return response;
+  const response = await createAPI.get("accounts/get-client-details/", { headers: { Authorization: `Bearer ${data.access_token}` } })
+  return response;
+}
+export const GET_ACCOUNT_SUMMARY_API = async (payload) => {
+  const response = await createMT5API.post("/account/summary/", payload)
+  return response;
 }
 export const POST_SELECTED_SYMBOLS_API = async (data) => {
   const response = await createAPI.post("instruments/", data)
@@ -112,11 +157,22 @@ export const GET_SELECTED_SYMBOLS_API = async () => {
   return response;
 }
 export const GET_SELECTED_TYPES_SYMBOLS_API = async (data) => {
-  const response = await createAPI.get("/instruments/favourites/",{
+  const response = await createAPI.get("/instruments/favourites/", {
     params: {
-      filter: data, 
+      filter: data,
     },
   })
+  return response;
+}
+export const GET_NEW_SELECTED_TYPES_SYMBOLS_API = async (data) => {
+  const response = await createAPI.post("accounts/get-instruments/", {
+    "event": "getinstruments",
+    "data": data
+  })
+  return response;
+}
+export const GET_INSTRUMENTS_PROFIT_CURRENCY_API = async (symbol) => {
+  const response = await createAPI.get(`instruments/instrument-profit-currency/?instrument=${symbol}`)
   return response;
 }
 
@@ -124,56 +180,98 @@ export const GET_ACCESS_TOKEN_API = async (data) => {
   const response = await createAPI.post("accounts/token/refresh/", data)
   return response;
 }
+// verification otp
+export const SENT_OTP_API = async () => {
+  const response = await createAPI.get("accounts/send-otp/")
+  return response;
+}
+export const VERIFY_OTP_API = async (data) => {
+  const response = await createAPI.post("/accounts/verify-otp/", data)
+  return response;
+}
+
+
 //-----------------------------------mt5--------------------//
 
 export const MARKET_ORDER_API = async (data) => {
-    const response = await createMT5API.post("trade/market-order/",data)
-    // window.user = response.data.username
-    return response;
+  const response = await createMT5API.post("trade/market-order/", data)
+  // window.user = response.data.username
+  return response;
 }
 export const LIMIT_ORDER_API = async (data) => {
-    const response = await createMT5API.post("trade/limit-order/",data)
-    // window.user = response.data.username
-    return response;
+  const response = await createMT5API.post("trade/limit-order/", data)
+  // window.user = response.data.username
+  return response;
 }
-export const OPEN_POSITION_API = async(client_id) => {
+export const OPEN_POSITION_API = async (client_id) => {
   const response = await createMT5API.get(`position/get-open-position/?client_id=${client_id}`)
   // window.user = response.data.username
   return response;
 }
-export const PENDING_ORDER_API= async(client_id) => {
+export const PENDING_ORDER_API = async (client_id) => {
   const response = await createMT5API.get(`trade/pending-order/?client_id=${client_id}`)
   return response
 }
-export const GET_SYMBOL_API= async() => {
+export const GET_SYMBOL_API = async () => {
   const response = await createMT5API.get(`symbol/fetch-symbols/`)
   return response
 }
-export const CLOSED_ORDER_API = async(data) =>{
-  const response = await createMT5API.post(`/deal/get-deals/`,data)
+export const GET_INSTUMENT_FILTERS = async () => {
+  const response = await createAPI.get(`accounts/get-filters/`)
   return response
 }
-export const DELETE_OPEN_ORDER =async(data) =>{
-  const response = await createMT5API.post(`position/close-position/`,data)
+export const CLOSED_ORDER_API = async ({ data, query = {} }) => {
+  let queryString = "";
+
+  if (query.page || query.pageSize) {
+    const page = query.page ? `page=${query.page}` : "";
+    const pageSize = query.pageSize ? `&pageSize=${query.pageSize}` : "";
+    queryString = `?${page}${pageSize}`;
+  }
+  const response = await createMT5API.post(
+    `/deal/get-deals${queryString}`,
+    data
+  );
+  return response;
+};
+
+export const DELETE_OPEN_ORDER = async (data) => {
+  const response = await createMT5API.post(`position/close-position/`, data)
   return response
 }
-export const DELETE_PENDING_ORDER = async(data) => {
-  const response = await createMT5API.post(`/trade/delete-pending-order/`,data)
+export const DELETE_PENDING_ORDER = async (data) => {
+  const response = await createMT5API.post(`/trade/delete-pending-order/`, data)
   return response
 }
-export const EDIT_OPEN_ORDER =async(data) =>{
-  const response = await createMT5API.post(`position/modify-position/`,data)
+export const EDIT_OPEN_ORDER = async (data) => {
+  const response = await createMT5API.post(`position/modify-position/`, data)
   return response
 }
-export const EDIT_PENDING_ORDER = async(data) =>{
-  const response = await createMT5API.post(`trade/modify-order/`,data)
+export const EDIT_PENDING_ORDER = async (data) => {
+  const response = await createMT5API.post(`trade/modify-order/`, data)
   return response
 }
-export const GET_ACCOUNT_DETAILS = async() => {
-  const response = await createAPI.get(`trade/account-details/`);
+export const GET_ACCOUNT_DETAILS = async (type) => {
+  const endpoint = type ? `trade/account-details/?type=${type}` : `trade/account-details/`;
+  const response = await createAPI.get(endpoint);
+
   return response;
 }
-export const ADD_DEMO_BALANCE = async(payload) =>{
- const response = await createMT5API.post(`/trade/set-demo-balance/`,payload)
- return response
+export const ADD_DEMO_BALANCE = async (payload) => {
+  const response = await createMT5API.post(`/trade/set-demo-balance/`, payload)
+  return response
+}
+
+//payment
+export const PAYMENT_API = async (data) => {
+  const response = await createAPI.post("payment/pay-in/", data)
+  return response;
+}
+export const WITHDRAWAL_API = async (data) => {
+  const response = await createAPI.post("payment/pay-out/", data)
+  return response;
+}
+export const GET_TRANSACTION_HISTORY_API = async (params) => {
+  const response = await createAPI.get(`payment/transaction-history/?sd=${params.sd}&ed=${params.ed}&transactionType=${params.transactionType}&statusFilter=${params.statusFilter}`)
+  return response;
 }

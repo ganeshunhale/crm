@@ -4,20 +4,61 @@ import {
   OPEN_POSITION_API,
   PENDING_ORDER_API,
   CLOSED_ORDER_API,
+  GET_NEW_SELECTED_TYPES_SYMBOLS_API,
+  GET_INSTRUMENTS_PROFIT_CURRENCY_API,
 } from "../API/ApiServices";
+
+let cachedProfitCurrencies = {};
+
+try {
+  const saved = localStorage.getItem("cachedProfitCurrencies");
+  if (saved) cachedProfitCurrencies = JSON.parse(saved);
+} catch (err) {
+  console.error("Failed to parse cachedProfitCurrencies from localStorage:", err);
+}
 
 // ---- Thunks ----
 export const fetchOpenPositions = createAsyncThunk(
   "positions/fetchOpen",
   async (demo_id) => {
-    const res = await OPEN_POSITION_API(demo_id);
-    return res?.data?.result || [];
+    try {
+      const res = await OPEN_POSITION_API(demo_id);
+
+    const positions = await Promise.all(
+      (res?.data?.result || []).map(async (item) => {
+        if(item.symbol.includes("USD")) return item
+        let convertedRes = {}
+
+        if (cachedProfitCurrencies[item.symbol]) convertedRes = cachedProfitCurrencies[item.symbol];
+        else {
+          const { data } = await GET_INSTRUMENTS_PROFIT_CURRENCY_API(item.symbol);
+
+          const { profitCurrency, bid = 0, ask = 0 } = data.result;
+
+          if (!profitCurrency) {
+            console.error("No instrument found for quote:", profitCurrency);
+            return item;
+          }
+          cachedProfitCurrencies[item.symbol] = { profitCurrency, bid, ask };
+          localStorage.setItem("cachedProfitCurrencies", JSON.stringify(cachedProfitCurrencies));
+          convertedRes = cachedProfitCurrencies[item.symbol];
+        }
+
+        const { profitCurrency, bid = 0, ask = 0 } = convertedRes;
+        return { ...item, convertedKey: profitCurrency, convertedValue : (item.type == "Buy" ? bid : ask) ?? 0 };
+      })
+    );
+
+    return positions
+    } catch (error) {
+      console.error("Error fetching open positions:", error);
+      return [];
+    }
   }
 );
 
 export const fetchPendingOrders = createAsyncThunk(
-  "positions/fetchPending",
-  async (demo_id) => {
+  "positions/fetchPending", async (demo_id) => {
     const res = await PENDING_ORDER_API(demo_id);
     return res?.data?.result || [];
   }
@@ -25,19 +66,39 @@ export const fetchPendingOrders = createAsyncThunk(
 
 export const fetchClosedOrders = createAsyncThunk(
   "positions/fetchClosed",
-  async (data) => {
-    const res = await CLOSED_ORDER_API(data);
+  async ({data,query}) => {
+    const res = await CLOSED_ORDER_API({data,query});
     return res?.data?.result || [];
   }
 );
 
+let debounceTimer = null;
+
+export const wsRemovePosition = (positionId, demo_id) => (dispatch) => {
+  // remove from state immediately
+  dispatch(positionSlice.actions.wsRemoveOpenPosition(positionId));
+
+  // debounce fetchClosedOrders
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    const now = new Date();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const from = new Date(now.getTime() - oneDay).toISOString();
+    const to = new Date(now.getTime() + oneDay).toISOString();
+
+    const payload = { event: "get-deals", data: { from, to, client_id: demo_id } };
+    dispatch(fetchClosedOrders({data:payload}));
+  }, 1000);
+};
 // ---- Slice ----
 const positionSlice = createSlice({
   name: "positions",
   initialState: {
+    staticOpen: [],
     open: [],
     pending: [],
     closed: [],
+    pagination:{},
     loading: false,
     error: null,
   },
@@ -59,13 +120,21 @@ const positionSlice = createSlice({
       );
       if (existingIndex === -1) {
         state.open.push(newPosition);
+        state.staticOpen.push(newPosition)
       }
+      state.pending = state.pending.filter(
+        (order) => order.positionId !== newPosition.positionId
+      );
     },
-    wsRemovePosition: (state, action) => {
+    wsRemoveOpenPosition: (state, action) => {
       const positionId = action.payload;
       state.open = state.open.filter(
         (pos) => pos.positionId !== positionId
       );
+      state.staticOpen = state.staticOpen.filter(
+        (pos) => pos.positionId !== positionId
+      );
+      
     },
     wsUpdatePosition: (state, action) => {
       const updatedPosition = action.payload;
@@ -112,6 +181,7 @@ const positionSlice = createSlice({
       .addCase(fetchOpenPositions.fulfilled, (state, action) => {
         state.loading = false;
         state.open = action.payload;
+        state.staticOpen = action.payload
       })
       .addCase(fetchOpenPositions.rejected, (state, action) => {
         state.loading = false;
@@ -139,7 +209,8 @@ const positionSlice = createSlice({
       })
       .addCase(fetchClosedOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.closed = action.payload;
+        state.closed = action.payload.data;
+        state.pagination = action.payload?.pagination?.[0] || [];
       })
       .addCase(fetchClosedOrders.rejected, (state, action) => {
         state.loading = false;
@@ -151,7 +222,6 @@ export const {
   addOpenPosition,
   deleteOpenPosition,
   wsAddPosition,
-  wsRemovePosition,
   wsUpdatePosition,
   wsSyncPosition,
   wsSetPositions,

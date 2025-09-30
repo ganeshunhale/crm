@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -12,11 +12,11 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { GET_ACCOUNT_DETAILS } from '../../API/ApiServices';
-
-
+import AccountSelector from './AccoutSection';
+import { addTradingAccountDetails } from '../../redux/tradingAccoutDetailsSLice';
 
 const BALANCE_STYLES = {
-  accountTypeChip: {
+  demoAccountTypeChip: {
     color: '#74D99D',
     marginRight: '4px',
     background: '#46CD7C29',
@@ -29,7 +29,20 @@ const BALANCE_STYLES = {
       background: '#46CD7C40'
     }
   },
-  
+  realAccountTypeChip: {
+    color: "#FFD700",
+    marginRight: '4px',
+    background: "rgba(255,215,0,0.15)",
+    px: 1,
+    borderRadius: 1,
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      background: "rgba(255,215,0,0.15)",
+    }
+  },
+
   balanceDisplay: {
     color: '#fff',
     textTransform: 'none',
@@ -41,7 +54,7 @@ const BALANCE_STYLES = {
       color: '#e0e0e0'
     }
   },
-  
+
   menuItem: {
     borderBottom: '1px solid rgba(255,255,255,0.1)',
     transition: 'background-color 0.2s ease-in-out',
@@ -52,17 +65,16 @@ const BALANCE_STYLES = {
 };
 
 const BalanceDisplay = () => {
+  const activeId = useSelector(state => state.auth.activeId)
+  const initialEquity = useRef(0);
   const navigate = useNavigate();
   const [anchorElBalance, setAnchorElBalance] = useState(null);
-  const [accountDetails, setAccountDetails] = useState({});
+  // const [accountDetails, setAccountDetails] = useState({});
   const isLoggedIn = useSelector(state => state.auth);
+  const accountDetails = useSelector(state => state.tradingAccouts);
+  const accountType= isLoggedIn?.accountType
 
-  // Real-time balance tracking
-  const positions = useSelector((state) => {
-    console.log("BalanceDisplay - Redux state:", state.positions);
-    return state.positions.open;
-  });
-  const initialEquity = useRef(0);
+  const positions = useSelector((state) => state.positions.open);
   const [equity, setEquity] = useState(0);
 
   const handleOpenBalanceMenu = useCallback((event) => {
@@ -78,92 +90,85 @@ const BalanceDisplay = () => {
     handleCloseBalanceMenu();
   }, []);
 
-  const getUserAccDetails = useCallback(async () => {
-    try {
-      const res = await GET_ACCOUNT_DETAILS();
-      setAccountDetails(res.data.result);
-      const balance = Number(res.data.result?.balance) || 0;
-      const credit = Number(res.data.result?.credit) || 0;
-      const eq = balance + credit;
-      initialEquity.current = eq;
-      setEquity(eq);
-    } catch (error) {
-      console.log(error);
-    }
-  }, []);
+  const dispatch = useDispatch();
 
   useEffect(() => {
-    getUserAccDetails();
-  }, [getUserAccDetails]);
-
-
-
-  // Note: Real-time price updates and profit calculations are now handled
-  // in the Redux middleware
-
-  useEffect(() => {
-    console.log("BalanceDisplay - Positions changed:", positions.length, positions);
-
-    if (positions.length === 0) {
-      if (initialEquity.current > 0) {
-        setEquity(initialEquity.current);
+    (async () => {
+      try {
+        const res = await GET_ACCOUNT_DETAILS();
+        dispatch(addTradingAccountDetails(res.data.result));
+      } catch (error) {
+        console.log(error);
       }
-      console.log("BalanceDisplay - No positions, setting equity to initial:", initialEquity.current);
-      return;
+    })()
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const balance = Number(accountDetails[activeId]?.balance) || 0;
+    const credit = Number(accountDetails[activeId]?.credit) || 0;
+    const eq = balance + credit;
+    initialEquity.current = eq;
+    setEquity(eq);
+  }, [activeId, accountDetails]);
+
+  useEffect(() => {
+    if (positions.length === 0) {
+      initialEquity.current > 0 && setEquity(initialEquity.current); 
+      return
     }
 
-    const totalProfit = positions.reduce((acc, val) => {
-      console.log(`BalanceDisplay - Position ${val.symbol}: profit=${val.profit}`);
-      return acc + (val.profit || 0);
-    }, 0);
+    const totalProfit = positions.reduce((acc, val) => acc + (val.profit || 0), 0);
 
+    // Use current equity state and add profit (exactly like Footer)
     const newEquity = Number((initialEquity.current + totalProfit).toFixed(2));
     setEquity(newEquity);
-    console.log("BalanceDisplay - Updated equity:", newEquity, "totalProfit:", totalProfit);
   }, [positions]);
 
   const balanceDetails = useMemo(() => {
-    if (!Boolean(anchorElBalance)) return [];
-    
+    if (!Boolean(anchorElBalance) || !activeId) return [];
+    // Match Footer's exact access patterns
+    const margin = Number(accountDetails[activeId]?.margin) || 0;
+    const balance = Number(accountDetails[activeId]?.balance) || 0;
+
     return [
-      { 
+      {
         id: 'balance',
-        label: 'Balance', 
-        value: `${Number(accountDetails?.balance) || 0} USD` 
+        label: 'Balance',
+        value: `${balance} USD`
       },
-      { 
+      {
         id: 'equity',
-        label: 'Equity', 
-        value: `${(equity || 0).toFixed(2)} USD` 
+        label: 'Equity',
+        value: `${(equity || 0).toFixed(2)} USD`
       },
-      { 
+      {
         id: 'margin',
-        label: 'Margin', 
-        value: `${Number(accountDetails?.margin) || 0} USD` 
+        label: 'Margin',
+        value: `${margin} USD`
       },
-      { 
+      {
         id: 'free_margin',
-        label: 'Free margin', 
-        value: `${((equity || 0) - (Number(accountDetails?.margin) || 0)).toFixed(2)} USD` 
+        label: 'Free margin',
+        value: `${((equity || 0) - (Number(accountDetails[activeId]?.margin) || 0)).toFixed(2)} USD`
       },
-      { 
+      {
         id: 'margin_level',
-        label: 'Margin level', 
-        value: (accountDetails?.margin && Number(accountDetails.margin) > 0) 
-          ? (((equity || 0) / Number(accountDetails.margin)) * 100).toFixed(2) + '%' 
-          : '0.00%' 
+        label: 'Margin level',
+        value: ((equity / (accountDetails[activeId]?.margin || 1)) * 100).toFixed(2) + '%'
       },
-      { 
+      {
         id: 'account_leverage',
-        label: 'Account leverage', 
-        value: accountDetails?.accountLeverage || '1:100' 
+        label: 'Account leverage',
+        value: accountDetails[activeId]?.accountLeverage || '1:100'
       }
     ];
-  }, [accountDetails, equity, anchorElBalance]);
+  }, [accountDetails, equity, anchorElBalance, activeId,accountType]);
+
 
   return (
-    <Box sx={{ flexGrow: 0, mr: 2 }}>
-      <Box display="flex" flexDirection="column" alignItems="start" mx={3}>
+    <Box sx={{ flexGrow: 0, mr:{md:2} }}>
+      <Box display="flex" flexDirection="column" alignItems="start"  sx={{ mx: { md: 3, xs: 0 } }}>
         <Typography
           variant="caption"
           sx={{
@@ -173,10 +178,10 @@ const BalanceDisplay = () => {
             alignItems: 'center',
           }}
         >
-          <Box component="span" sx={BALANCE_STYLES.accountTypeChip}>
-            {isLoggedIn?.data.client_MT5_id?.demo_id !== "" ? "Demo" : 'Real'}
+          <Box component="span" sx={isLoggedIn?.accountType === "Demo" ?  BALANCE_STYLES.demoAccountTypeChip : BALANCE_STYLES.realAccountTypeChip}>
+            {isLoggedIn?.accountType === "Demo" ? "Demo" : 'Real'}
           </Box>
-          Standard
+          {activeId || 'No Account Selected'}
         </Typography>
         <Tooltip title="View account balance details" arrow>
           <Typography
@@ -191,19 +196,19 @@ const BalanceDisplay = () => {
             }}
           >
             {equity.toFixed(2)} USD
-            <KeyboardArrowDownIcon 
-              sx={{ 
+            <KeyboardArrowDownIcon
+              sx={{
                 ml: 0.5,
                 transition: 'transform 0.2s ease-in-out',
                 transform: anchorElBalance ? 'rotate(180deg)' : 'rotate(0deg)'
-              }} 
+              }}
             />
           </Typography>
         </Tooltip>
       </Box>
 
       <Menu
-        sx={{ 
+        sx={{
           mt: '45px',
           '& .MuiPaper-root': {
             minWidth: '300px',
@@ -228,8 +233,8 @@ const BalanceDisplay = () => {
       >
         {balanceDetails.map((item) => (
           <MenuItem key={item.id} sx={BALANCE_STYLES.menuItem} disabled>
-            <Box sx={{  display: 'flex',  justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-              <Typography sx={{ textAlign: 'start',  minWidth: '120px', fontWeight: 500, color: 'text.secondary' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <Typography sx={{ textAlign: 'start', minWidth: '120px', fontWeight: 500, color: 'text.secondary' }}>
                 {item.label}
               </Typography>
               <Typography sx={{ textAlign: 'end', fontWeight: 600, color: 'text.primary' }}>
@@ -238,10 +243,10 @@ const BalanceDisplay = () => {
             </Box>
           </MenuItem>
         ))}
-        
+
         <Divider sx={{ my: 1 }} />
-        
-        <MenuItem 
+
+        <MenuItem
           onClick={handleNavigateToLayout}
           sx={{
             ...BALANCE_STYLES.menuItem,
@@ -256,7 +261,7 @@ const BalanceDisplay = () => {
             alignItems: 'center',
             width: '100%'
           }}>
-            <Typography sx={{ 
+            <Typography sx={{
               textAlign: 'start',
               fontWeight: 500
             }}>
@@ -264,7 +269,12 @@ const BalanceDisplay = () => {
             </Typography>
             <ChevronRightIcon sx={{ fontSize: 20 }} />
           </Box>
+
+          <Divider sx={{ my: 1 }} />
         </MenuItem>
+        {/* === Choose an account section === */}
+        <Divider sx={{ my: 1 }} />
+        <AccountSelector/>
       </Menu>
     </Box>
   );

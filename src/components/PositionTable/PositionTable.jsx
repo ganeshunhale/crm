@@ -1,10 +1,12 @@
 
 // 'use client';
-import React, { StrictMode, useState, useEffect, useMemo, useRef } from "react";
+
+// imports
+import React, { StrictMode, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { Autocomplete, Button, CircularProgress, Input, TextField, Tooltip, useTheme } from "@mui/material"
 import { AgGridReact } from "ag-grid-react";
-import { OPEN_POSITION_API, DELETE_OPEN_ORDER, DELETE_PENDING_ORDER } from "../../API/ApiServices"
+import { OPEN_POSITION_API, DELETE_OPEN_ORDER, DELETE_PENDING_ORDER, GET_NEW_SELECTED_TYPES_SYMBOLS_API } from "../../API/ApiServices"
 import "./PositionsTable.css" // import your CSS here
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
@@ -18,8 +20,10 @@ import {
   deleteOpenPosition,
   addOpenPosition,
 } from "../../redux/positionSlice";
-import { updateMandetorySymbols } from "../../redux/tradePositionSlice";
+import { updatePositionSymbols } from "../../redux/tradePositionSlice";
 import { showSnackbar } from "../../redux/snackbarslice";
+
+
 
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -39,23 +43,62 @@ const mapSocketToRow = (data) => {
     profit: data.Profit ?? 0,
   };
 };
+
+
+
 export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
   const dispatch = useDispatch();
-  const { open: openPositions, pending, closed, loading, error } = useSelector(
+  const { open: oooo,  pending, closed, staticOpen: staticOpenPositions } = useSelector(
     (state) => state.positions
   );
+
   const gridRef = useRef(null)
   const muiTheme = useTheme()
   const [activeTab, setActiveTab] = useState("pending")
   const [open, setOpen] = useState(false);
 
   const [editData, setEditData] = useState({})
-  const isLoggedIn = useSelector(state => state.auth)
-  const demo_id = isLoggedIn.data.client_MT5_id.demo_id
+  const demo_id = useSelector(state => state.auth.activeId)
 
   const scrollContainerRef = useRef(null);
   const [scrolled, setScrolled] = useState(false);
   const [deletingRows, setDeletingRows] = useState({});
+
+  const [allSymbols, setAllSymbols] = useState([])
+
+  // const getConvertedSymbol = useCallback((sym, sendWholeObject) => {
+  //   const pair = sym.slice(0, 6);   // first 6 chars
+  //   const suffix = sym.slice(6);    // rest of symbol
+
+  //   if (pair.includes("USD")) return false;
+
+  //   const quote = pair.slice(-3);   // last 3 chars of the pair
+  //   console.log({allSymbols})
+  //   const res = allSymbols.find(e => e.instrument?.includes("USD") && e.instrument?.includes(quote))
+    
+  //   if(sendWholeObject) return res ?? {}
+  //   return res ? res.instrument : `${quote}USD${suffix}`;
+  // }, [allSymbols]);
+
+  // const addConverted = useCallback((items = []) => {
+  //   return items.map((item) => {
+  //     const {instrument, bid, ask} = getConvertedSymbol(item.symbol, true);
+  //     const  convertedValue = (item.type == "Buy" ? bid : ask) ?? 0
+  //     return instrument ? { ...item, convertedKey: instrument, convertedValue } : item});
+  // }, [getConvertedSymbol]);
+
+
+  // useEffect(() => {
+  //   (async () => {
+  //     try {
+  //       const res = await GET_NEW_SELECTED_TYPES_SYMBOLS_API()
+  //       console.log({ddd: res.data.result})
+  //       setAllSymbols(res.data.result)
+  //     } catch (error) {
+  //       console.log({error})
+  //     }
+  //   })()
+  // },[])
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -74,6 +117,20 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
   }, []);
 
 
+  const agGridTheme = useMemo(() => {
+    return themeQuartz.withParams({
+      backgroundColor: muiTheme.palette.background.default,
+      foregroundColor: "#e2e8f0",
+      headerBackgroundColor: "#1f2937",
+      headerTextColor: "#d1d5db",
+      borderColor: "#334155",
+      rowHoverColor: "#374151",
+      selectedRowBackgroundColor: "#1e293b",
+      borderRadius: 0,
+      wrapperBorderRadius: 0,
+    });
+  }, [muiTheme.palette.background.default]);
+
 
   useEffect(() => {
     const socketInstance = ticksSocket.current;
@@ -81,13 +138,7 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
 
     const buyTypes = new Set([0, 2, 4, 6]);
     const sellTypes = new Set([1, 3, 5, 7]);
-    const specialSymbols = new Set([
-      "USDCAD", "USDCHF", "USDJPY", "AUDCAD", "EURGBP", "EURJPY",
-      "GBPAUD", "GBPCHF", "GBPJPY", "AUDCHF", "AUDJPY", "AUDNZD",
-      "CADCHF", "CADJPY", "CHFJPY", "EURAUD", "EURCAD", "EURCHF",
-      "EURNZD", "GBPCAD", "GBPNZD", "NZDCAD", "NZDCHF", "NZDJPY",
-      "USDHKD"
-    ]);
+    const specialSymbols = new Set(["USDCAD", "USDCHF", "USDJPY", "USDHKD"]);
     const handleMessage = (event) => {
       try {
         if (!event.data || activeTab === "closed" || !gridRef.current || !gridRef.current.api) return;
@@ -101,15 +152,11 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
             const type = rowNode.data.type;
             let currentPrice;
 
-            if (type === "Buy" || buyTypes.has(type)) {
-              currentPrice = data.data.bid;
-            } else if (type === "Sell" || sellTypes.has(type)) {
-              currentPrice = data.data.ask;
-            }
+            if (type === "Buy" || buyTypes.has(type)) currentPrice = data.data.bid;
+            else if (type === "Sell" || sellTypes.has(type)) currentPrice = data.data.ask;
 
             // build updated row object
             let updatedRow = { ...rowNode.data, current_price: currentPrice };
-
             if (activeTab === "open") {
               const openPrice = parseFloat(rowNode.data.open_price);
               const volume = parseFloat(rowNode.data.volume);
@@ -118,20 +165,34 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
               const signedVolume = type === "Sell" ? -volume : volume;
               // let profit = (currentPrice - openPrice) * signedVolume * contractSize;
               let profit = ((currentPrice - openPrice) * signedVolume) * contractSize;
+              // console.log(`profit : ${profit},currentPrice:${currentPrice},openPrice:${openPrice},signedVolume:${signedVolume},contractSize:${contractSize}`)
 
-              if (specialSymbols.has(rowNode.data.symbol)) {
+              if (specialSymbols.has(rowNode.data.symbol.split(".")[0])) {
                 profit = profit / currentPrice;
+              }
+              if (updatedRow.convertedKey) {
+                // console.log({beforee: profit, afterr: updatedRow.convertedKey.slice(0, 3) == "USD" ? profit / rowNode.data.convertedValue : profit * rowNode.data.convertedValue})
+                if(updatedRow.convertedKey.slice(0, 3) == "USD") profit = profit / rowNode.data.convertedValue
+                else profit = profit * rowNode.data.convertedValue
               }
 
               updatedRow = { ...updatedRow, profit };
             }
-
             // apply immutable update
+            api.applyTransaction({ update: [updatedRow] });
+          } else if (rowNode.data.convertedKey === data.data.symbol) {
+            const type = rowNode.data.type;
+
+            let currentPrice;
+            if (type === "Buy" || buyTypes.has(type)) currentPrice = data.data.bid;
+            else if (type === "Sell" || sellTypes.has(type)) currentPrice = data.data.ask;
+
+            let updatedRow = { ...rowNode.data, "convertedValue": currentPrice };
             api.applyTransaction({ update: [updatedRow] });
           }
         });
       } catch (err) {
-        console.error("Invalid WS message:", event.data, err);
+        console.error("Invalid WS message: ", specialSymbols, event.data, err);
       }
     };
 
@@ -141,13 +202,79 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
     };
   }, [ticksSocket.current, activeTab]);
   // Listen for Redux state changes to update the grid
-  useEffect(() => {
-    const api = gridRef.current?.api;
-    if (!api || activeTab !== "open") return;
+  // useEffect(() => {
+  //   const api = gridRef.current?.api;
+  //   if (!api || activeTab !== "open") return;
 
-    // Update the grid when Redux state changes
-    api.setGridOption('rowData', openPositions);
-  }, [openPositions, activeTab]);
+  //   // Update the grid when Redux state changes
+  //   api.setGridOption('rowData', addConverted(staticOpenPositions));
+  // }, [staticOpenPositions, activeTab]);
+
+  useEffect(() => {
+    const socketInstance = broadCasterSocket.current;
+    if (!socketInstance) return;
+
+    const api = gridRef.current?.api;
+
+    const handleBroadCast = (event) => {
+      try {
+        if (!event.data) return;
+        const parsed = JSON.parse(event.data);
+
+        if (parsed.event !== "position") return;
+        const d = parsed.data;
+
+        switch (d.function) {
+          case "sync":
+            return;
+
+          case "delete":
+            if (activeTab === "open" && api) {
+              console.log("deleting position from broadcaster", d.Position)
+              const existingNode = api.getRowNode(d.Position);
+              existingNode && api.applyTransaction({ remove: [{ positionId: d.Position }] });
+            }
+
+            break;
+
+          case "add":
+            const newRow = mapSocketToRow(d);
+console.log("newRow from broadcaster", newRow)
+            if (activeTab === "open" && api) {
+              const existingNode = api.getRowNode(newRow.positionId);
+              !existingNode && api.applyTransaction({ add: [newRow] });
+            }
+
+            break;
+
+          case "update":
+            if (activeTab === "open" && api) {
+              const updateRow = {
+                positionId: d.Position,       // must match getRowId
+                type: d.Action,
+                symbol: d.Symbol,
+                open_price: d.OpenPrice,
+                volume: d.Volume,
+                contractSize: d.ContractSize,
+                current_price: d.CurrentPrice,
+                profit: d.Profit,
+              };
+
+              api.applyTransaction({ update: [updateRow] });
+            }
+            break;
+
+          default:
+            console.warn("Unhandled broadcaster function:", d.function);
+        }
+      } catch (err) {
+        console.error("Invalid broadcaster WS message:", event.data, err);
+      }
+    };
+
+    socketInstance.addEventListener("message", handleBroadCast);
+    return () => socketInstance.removeEventListener("message", handleBroadCast);
+  }, [broadCasterSocket.current, activeTab]);
 
 
   const TypeRenderer = (params) => {
@@ -166,7 +293,7 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
         default:
           return "bg-slate-500";
       }
-    };
+    }
 
     return (
       <div className="mt-2 flex items-center gap-2 text-sm font-bold">
@@ -212,7 +339,7 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
   }
 
   const getReadableType = (type) => {
-    if (activeTab === "closed") type === 0 ? type = 1 : type = 0 
+    if (activeTab === "closed") type === 0 ? type = 1 : type = 0
     if (typeof type === "number") return ORDER_TYPE_CONSTANT[type] || "Unknown";
     if (typeof type === "string") return type;
     return "Unknown";
@@ -227,8 +354,6 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
       data,
       activeTab,
       demo_id,
-      deletingRows,
-      setDeletingRows,
       setEditData,
       setOpen,
     } = props;
@@ -241,12 +366,12 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
         if (activeTab === "open") {
           const payload = {
             event: "close-position",
-            data: { position_id: data.positionId },
+            data: { position_id: [data.positionId] },
           };
           const res = await DELETE_OPEN_ORDER(payload);
           if (res.status === 200) {
-            dispatch(showSnackbar({ message: `Position closed  \n ${getReadableType(data.type)}  ${data.volume} lot ${data.symbol} at ${data.current_price}`, severity:  "success" }));
-            dispatch(fetchOpenPositions(demo_id));
+            dispatch(showSnackbar({ message: `Position closed  \n ${getReadableType(data.type)}  ${data.volume} lot ${data.symbol} at ${data.current_price}`, severity: "success" }));
+            // dispatch(fetchOpenPositions(demo_id));
           }
         } else if (activeTab === "pending") {
           const payload = {
@@ -255,7 +380,7 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
           };
           const res = await DELETE_PENDING_ORDER(payload);
           if (res.status === 200) {
-            dispatch(showSnackbar({ message: `Pending Order deleted \n${getReadableType(data.type)} ${data.volume} lot ${data.symbol} at ${data.current_price}`, severity:  "success" }));
+            dispatch(showSnackbar({ message: `Pending Order deleted \n${getReadableType(data.type)} ${data.volume} lot ${data.symbol} at ${data.current_price}`, severity: "success" }));
             dispatch(fetchPendingOrders(demo_id));
           }
         }
@@ -273,15 +398,16 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
         setTimeout(() => {
           setLoading(false);
         }, 100)
-
       }
     };
 
-
     const onEdit = () => {
-      console.log(props.data)
-      setOpen(true)
-      setEditData(props.data)
+      const api = gridRef.current?.api;
+      const rowNode = api.getRowNode(data.positionId || data.order_id);
+      if (rowNode) {
+        setEditData(rowNode.data); // always fresh
+        setOpen(true);
+      }
     }
 
     return (
@@ -304,7 +430,7 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
   const defaultColDef = useMemo(() => ({ flex: 1 }), []);
   const colDefs = useMemo(() => {
     const baseCols = [
-      { field: "symbol", headerName: "Symbol"},
+      { field: "symbol", headerName: "Symbol" },
       {
         headerName: "Type",
         field: "type",
@@ -413,29 +539,54 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
     const from = new Date(now.getTime() - oneDay).toISOString();
     const to = new Date(now.getTime() + oneDay).toISOString();
     const payload = { event: "get-deals", data: { from, to, client_id: demo_id } };
-    dispatch(fetchClosedOrders(payload));
+    dispatch(fetchClosedOrders({data:payload}));
 
-  }, [dispatch, demo_id, activeTab]);
+  }, [dispatch, demo_id,activeTab]);
 
-  const rowData = {
-    open: openPositions,
-    pending: pending,
-    closed: closed
-  };
+  const rowData = useMemo(() => {
+    console.log({staticOpenPositions})
+    return {
+      open: staticOpenPositions,
+      pending: pending,
+      closed: closed,
+    };
+  }, [staticOpenPositions, pending, closed]);
+
   useEffect(() => {
-    const openSymbols = openPositions?.map((pos) => pos.symbol) || [];
-    const pendingSymbols = pending?.map((pos) => pos.symbol) || [];
+    const symbols = new Set();
+    [...(staticOpenPositions || []), ...(pending || [])].forEach((pos) => {
+      const sym = pos.symbol;
+      symbols.add(sym);
+      if(pos.convertedKey) symbols.add(pos.convertedKey)
+    });
+    dispatch(updatePositionSymbols([...symbols]));
+  }, [staticOpenPositions, pending, dispatch]);
 
-    const combined = [...openSymbols, ...pendingSymbols];
-    if (combined.length > 0) {
-      dispatch(updateMandetorySymbols(combined));
-    }
-  }, [openPositions, pending, dispatch]);
 
   const getTabCount = (status) => {
     // console.log("tab status", status, rowData[status]);
     return rowData[status]?.length || 0;
   };
+
+  // const loadInitialRows = (tab, api) => {
+  //   // clear out old rows
+  //   if (!api) return;
+  //   const currentRows = [];
+  //   api.forEachNode((node) => currentRows.push(node.data));
+  
+  //   let newRows = [];
+  //   if (tab === "open") newRows = addConverted(staticOpenPositions || []);
+  //   if (tab === "pending") newRows = addConverted(pending || []);
+  //   if (tab === "closed") newRows = addConverted(closed || []);
+  
+  //   api.applyTransaction({ remove: currentRows, add: newRows });
+  // };
+
+  // useEffect(() => {
+  //   const api = gridRef.current?.api;
+  //   if (!api) return; // api not yet ready
+  //   loadInitialRows(activeTab, api);
+  // }, [activeTab,pending]);
 
   return (
     <>
@@ -464,24 +615,18 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
         <div className="h-60 pt-1">
           <AgGridReact
             ref={gridRef}
-            className="ag-theme-quartz"
+            // className="ag-theme-quartz"
             rowData={rowData[activeTab] || []}
             getRowId={(params) => `${params.data.positionId || params.data.order_id || params.data.ticket}`}
             columnDefs={colDefs}
             defaultColDef={defaultColDef}
             headerHeight={30}
+            // onGridReady={(params) => {
+            //   // gridRef.current = params.api; // store api directly in ref
+            //   loadInitialRows(activeTab, params.api); // load the initial tab’s rows
+            // }}
             // getRowId={(params) => params.data.positionNo.toString()}
-            theme={themeQuartz.withParams({
-              backgroundColor: muiTheme.palette.background.default,
-              foregroundColor: "#e2e8f0",
-              headerBackgroundColor: "#1f2937",
-              headerTextColor: "#d1d5db",
-              borderColor: "#334155",
-              rowHoverColor: "#374151",
-              selectedRowBackgroundColor: "#1e293b",
-              borderRadius: 0,
-              wrapperBorderRadius: 0,
-            })}
+            theme={agGridTheme}
           />
         </div>
       </div>

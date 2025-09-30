@@ -12,6 +12,7 @@ import { EDIT_OPEN_ORDER, EDIT_PENDING_ORDER } from '../../API/ApiServices';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchOpenPositions, fetchPendingOrders } from '../../redux/positionSlice';
 import { showSnackbar } from '../../redux/snackbarslice';
+import { is } from 'zod/v4/locales';
 
 const ORDER_TYPE_CONSTANT = {
     0: "Buy",
@@ -30,8 +31,8 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
     const [tP, setTP] = useState(0)
     const [sl, setSl] = useState(0)
     const [openPrice, setOpenPrice] = useState(0)
-    const isLoggedIn = useSelector(state => state.auth)
-    const demo_id = isLoggedIn.data.client_MT5_id.demo_id
+    const activeId = useSelector(state => state.auth.activeId)
+
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -57,7 +58,7 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
                 const res = await EDIT_PENDING_ORDER(data)
                 if (res.status === 200) {
 
-                    dispatch(fetchPendingOrders(demo_id));
+                    dispatch(fetchPendingOrders(activeId));
                     dispatch(showSnackbar({ message: `Order #${editData?.order_id} for ${editData?.symbol} updated successfully!`, severity: "success" }));
                     handleClose()
                 }
@@ -77,8 +78,8 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
             try {
                 const res = await EDIT_OPEN_ORDER(data)
                 if (res.status === 200) {
-                    dispatch(showSnackbar({message: `Position #${editData?.positionId} for ${editData?.symbol} updated successfully!`, severity: "success" }));
-                    dispatch(fetchOpenPositions(demo_id));
+                    dispatch(showSnackbar({ message: `Position #${editData?.positionId} for ${editData?.symbol} updated successfully!`, severity: "success" }));
+                    dispatch(fetchOpenPositions(activeId));
                     handleClose()
                 }
             } catch (error) {
@@ -115,6 +116,8 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
         onClose(false);
         setEditData({})
     };
+
+
 
     return (
         <React.Fragment>
@@ -289,8 +292,8 @@ export default function PositionDialog({ onOpen, onClose, editData, setEditData,
                     </form>
                 </DialogContent>
                 <DialogActions p={2}>
-                    <Button onClick={handleReset} variant='outlined' fullWidth>Reset</Button>
-                    <Button type="submit" form="subscription-form" variant='contained' fullWidth>
+                    <Button onClick={handleReset} variant='outlined' sx={{ borderColor: ' rgb(255, 222, 2)', color: '#FFF' }} fullWidth>Reset</Button>
+                    <Button type="submit" form="subscription-form" sx={{ backgroundColor: ' rgb(255, 222, 2)', color: 'black' }} variant='contained' fullWidth>
                         Modify
                     </Button>
                 </DialogActions>

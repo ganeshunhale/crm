@@ -26,13 +26,22 @@ const darkTheme = createTheme({
       900: '#111827',
     }
   },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 960,
+      lg: 1280,
+      xl: 1920,
+    },
+  },
 });
 
 const lightTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main:'#4B5563',
+      main: '#4B5563',
     },
     secondary: {
       main: '#f48fb1',
@@ -54,6 +63,15 @@ const lightTheme = createTheme({
       900: '#111827',
     }
   },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 960,
+      lg: 1280,
+      xl: 1920,
+    },
+  },
 });
 
-export  {darkTheme,lightTheme};
+export { darkTheme, lightTheme };

@@ -6,8 +6,10 @@ export function useWebSocket(url) {
   const manuallyClosed = useRef(false);
   const reconnectAttempts = useRef(0);
   const messageQueue = useRef([]);
+
   const connect = useCallback(() => {
-    if (!url) return;
+    if (!url || socketRef.current) return;
+    console.log({url})
     manuallyClosed.current = false;
 
     const socket = new WebSocket(url);
@@ -16,8 +18,8 @@ export function useWebSocket(url) {
     socket.onopen = () => {
       reconnectAttempts.current = 0;
       console.log("✅ Connected");
-    //   onOpen?.(event);
-    messageQueue.current.forEach((msg) => {
+      //   onOpen?.(event);
+      messageQueue.current.forEach((msg) => {
         socket.send(typeof msg === "string" ? msg : JSON.stringify(msg));
       });
       messageQueue.current = [];
@@ -28,12 +30,12 @@ export function useWebSocket(url) {
     // };
 
     socket.onerror = (err) => {
-    //   onError?.(event);
-    console.error("⚠️ Error:", err)
+      //   onError?.(event);
+      console.error("⚠️ Error:", err)
     };
 
     socket.onclose = () => {
-        console.log("❌ Disconnected")
+      console.log("❌ Disconnected")
 
       // Reconnect if not closed manually
       if (!manuallyClosed.current) {
@@ -52,7 +54,7 @@ export function useWebSocket(url) {
     return () => {
       // manuallyClosed.current = true;
       clearTimeout(reconnectTimeoutRef.current);
-    //   socketRef.current?.close();
+      //   socketRef.current?.close();
     };
   }, [connect]);
 
@@ -61,7 +63,7 @@ export function useWebSocket(url) {
     if (socketInstance?.readyState === WebSocket.OPEN) {
       socketInstance.send(typeof msg === "string" ? msg : JSON.stringify(msg));
     } else {
-        messageQueue.current.push(msg);
+      messageQueue.current.push(msg);
       console.warn("WebSocket not open yet, message not sent", msg);
     }
   }, []);

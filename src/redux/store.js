@@ -5,12 +5,14 @@ import authSlice from "./authSlice"
 import tradePositionSlice from "./tradePositionSlice"
 import snackbarReducer from "./snackbarslice";
 import positionReducer from "./positionSlice";
+import paymentReducer from './paymentSlice'
+import tradingAccout from "./tradingAccoutDetailsSLice";
 import { createWebSocketMiddleware } from "./websocketMiddleware";
 
 const authPersistConfig = {
   key: "auth",
   storage,
-  whitelist: ['isLoggedIn', 'data'], // optional: only persist these fields
+  whitelist: ['isLoggedIn', 'data', "activeId", "accountType"], // optional: only persist these fields
 };
 
 const rootReducer = combineReducers({
@@ -18,6 +20,8 @@ const rootReducer = combineReducers({
   tradeposition: tradePositionSlice,
   snackbar: snackbarReducer,
   positions: positionReducer,
+  payments:paymentReducer,
+  tradingAccouts: tradingAccout
 });
 
 export const store = configureStore({

@@ -1,11 +1,14 @@
 // websocketMiddleware.js
 import { 
   wsAddPosition, 
-  wsRemovePosition, 
   wsUpdatePosition, 
   wsSyncPosition,
-  fetchPendingOrders 
+  fetchPendingOrders, 
+  wsRemovePosition
 } from './positionSlice';
+
+const buyTypes = new Set([0, 2, 4, 6]);
+const sellTypes = new Set([1, 3, 5, 7]);
 
 // Helper function to map WebSocket data to Redux position format
 const mapSocketToPosition = (data) => {
@@ -42,8 +45,8 @@ export const createWebSocketMiddleware = () => {
           }
           break;
 
-        case 'remove':
-          store.dispatch(wsRemovePosition(data.Position));
+        case 'delete':
+          store.dispatch(wsRemovePosition(data.Position,demo_id));
           break;
 
         case 'update':
@@ -60,19 +63,19 @@ export const createWebSocketMiddleware = () => {
           store.dispatch(wsUpdatePosition(updateData));
           break;
 
-        case 'sync':
-          const syncData = {
-            positionId: data.Position,
-            type: data.Action,
-            symbol: data.Symbol,
-            open_price: data.OpenPrice,
-            volume: data.Volume,
-            contractSize: data.ContractSize,
-            current_price: data.CurrentPrice,
-            profit: data.Profit,
-          };
-          store.dispatch(wsSyncPosition(syncData));
-          break;
+        // case 'sync':
+        //   const syncData = {
+        //     positionId: data.Position,
+        //     type: data.Action,
+        //     symbol: data.Symbol,
+        //     open_price: data.OpenPrice,
+        //     volume: data.Volume,
+        //     contractSize: data.ContractSize,
+        //     current_price: data.CurrentPrice,
+        //     profit: data.Profit,
+        //   };
+        //   store.dispatch(wsSyncPosition(syncData));
+        //   break;
 
         default:
           console.warn('Unhandled WebSocket position function:', fn);
@@ -89,41 +92,32 @@ export const createWebSocketMiddleware = () => {
       const state = store.getState();
       const openPositions = state.positions.open;
 
-      // Find positions that need updating for this symbol
-      const positionsToUpdate = openPositions.filter(position => position.symbol === symbol);
-
-      if (positionsToUpdate.length > 0) {
-        // Update each position individually to trigger proper re-renders
-        positionsToUpdate.forEach(position => {
+      openPositions.forEach(position => {
+        if(position.symbol === symbol){
           const updatedPosition = calculateProfit(position, bid, ask);
-
-          // Only update if profit or price actually changed
-          if (updatedPosition.profit !== position.profit ||
-              updatedPosition.current_price !== position.current_price) {
-            console.log(`Dispatching wsUpdatePosition for ${position.symbol}:`, {
-              oldProfit: position.profit,
-              newProfit: updatedPosition.profit,
-              oldPrice: position.current_price,
-              newPrice: updatedPosition.current_price
-            });
+          if (updatedPosition.profit !== position.profit || updatedPosition.current_price !== position.current_price) {
             store.dispatch(wsUpdatePosition(updatedPosition));
           }
-        });
-      }
+        } else if(position.convertedKey == symbol) {
+            const type = position.type;
+            let currentPrice;
+            if (type === "Buy" || buyTypes.has(type)) currentPrice = bid;
+            else if (type === "Sell" || sellTypes.has(type)) currentPrice = ask;
+
+            let updatedRow = { ...position, "convertedValue": currentPrice };
+            store.dispatch(wsUpdatePosition(updatedRow));
+            // api.applyTransaction({ update: [updatedRow] });
+        }
+      });
     }
 
     return next(action);
   };
 };
 
-// Helper function to calculate profit based on ticks
 const calculateProfit = (position, bid, ask) => {
   const specialSymbols = new Set([
-    "USDCAD", "USDCHF", "USDJPY", "AUDCAD", "EURGBP", "EURJPY",
-    "GBPAUD", "GBPCHF", "GBPJPY", "AUDCHF", "AUDJPY", "AUDNZD",
-    "CADCHF", "CADJPY", "CHFJPY", "EURAUD", "EURCAD", "EURCHF",
-    "EURNZD", "GBPCAD", "GBPNZD", "NZDCAD", "NZDCHF", "NZDJPY",
-    "USDHKD"
+    "USDCAD", "USDCHF", "USDJPY", "USDHKD"
   ]);
 
   const type = position.type;
@@ -135,21 +129,14 @@ const calculateProfit = (position, bid, ask) => {
   const signedVolume = type === "Sell" ? -volume : volume;
   let profit = (currentPrice - openPrice) * signedVolume * contractSize;
 
-  if (specialSymbols.has(position.symbol)) {
+  if (specialSymbols.has(position.symbol.split(".")[0])) {
     profit = profit / currentPrice;
   }
 
-  console.log(`Profit calculation for ${position.symbol}:`, {
-    type,
-    currentPrice,
-    openPrice,
-    volume,
-    contractSize,
-    signedVolume,
-    profit: profit.toFixed(2),
-    bid,
-    ask
-  });
+  if (position.convertedKey) {
+    if(position.convertedKey.slice(0, 3) == "USD") profit = profit / position.convertedValue
+    else profit = profit * position.convertedValue
+  }
 
   return {
     ...position,

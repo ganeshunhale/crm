@@ -15,12 +15,16 @@ import {
   Autocomplete,
   Button,
   CircularProgress,
+  MenuItem,
+  Select,
   TextField,
 } from "@mui/material"
 
 import SortableInstrumentRow, { InstrumentRow } from "./InstrumentRow"
 
 import {
+  GET_INSTUMENT_FILTERS,
+  GET_NEW_SELECTED_TYPES_SYMBOLS_API,
   GET_SELECTED_SYMBOLS_API,
   GET_SELECTED_TYPES_SYMBOLS_API,
   GET_SYMBOL_API,
@@ -28,24 +32,26 @@ import {
 } from "../../API/ApiServices"
 import {
   selectedSymbolAction,
-  updateMandetorySymbols,
+  updateMarketWatchSymbols,
   updateTicksAction,
 } from "../../redux/tradePositionSlice"
-import { useDispatch } from "react-redux"
-
-const FILTER_TYPE = {
-  Favorites: "",
-  "Most Traded": "most_traded",
-  "Top Moves": "top_moves",
-  Metals: "metals",
-  Majors: "majors",
-  Crypto: "crypto",
-  Indices: "indices",
-  Energy: "energy",
-}
+import { useDispatch, useSelector } from "react-redux"
 
 // Consistent grid layout for header and rows
 const GRID_LAYOUT = "120px 30px 1fr 1fr"
+
+const formatSymbolList = (symbols) => {
+  const res = symbols.map((s, i) => {console.log(s);return({
+    
+    id: `${i + 1}-${s.instrument}`, 
+    symbol: s.instrument, signal: "neutral", 
+    bid: s.bid, ask: s.ask,contractSize: s.contractSize, leverage: s.leverage,point: s.point
+
+  })})
+  console.log({symbols, res})
+  return res
+}
+
 
 function InstrumentsPanel({ ticksSocket }) {
   const dispatch = useDispatch()
@@ -54,12 +60,13 @@ function InstrumentsPanel({ ticksSocket }) {
   const [allSymbols, setAllSymbols] = useState([])
   const [selectedSymbols, setSelectedSymbols] = useState([])
   const [posting, setPosting] = useState(false)
-  const [filterType, setFilterType] = useState("")
+  const [filterTypes, setFilterTypes] = useState([])
+  const [selectedFilterType, setSelectedFilterType] = useState("Favorites")
   const [loading, setLoading] = useState(true)
   const [selectedSymbol, setSelectedSymbol] = useState(null)
-  const [activeId, setActiveId] = useState(null)
+  const [activeInstument, setActiveInstumetn] = useState(null)
+  const activeId = useSelector(state => state.auth.activeId);
   const [isDragging, setIsDragging] = useState(false)
-
   // ---- WebSocket updates ----
   useEffect(() => {
     const socketInstance = ticksSocket.current
@@ -90,6 +97,7 @@ function InstrumentsPanel({ ticksSocket }) {
         }
 
         if (data.data.symbol === selectedSymbol) {
+          console.log("data-symbol",data)
           dispatch(updateTicksAction(data.data))
         }
       } catch (err) {
@@ -105,8 +113,10 @@ function InstrumentsPanel({ ticksSocket }) {
   useEffect(() => {
     const fetchSymbols = async () => {
       try {
-        const res = await GET_SYMBOL_API()
-        setAllSymbols(res.data.result?.data || [])
+        const res = await GET_NEW_SELECTED_TYPES_SYMBOLS_API()
+        const {data} = await GET_INSTUMENT_FILTERS({})
+        setFilterTypes(data.result || [])
+        setAllSymbols(res.data.result.map((s) => s.instrument))
       } catch (err) {
         console.error("Failed to fetch symbols:", err)
       } finally {
@@ -116,40 +126,9 @@ function InstrumentsPanel({ ticksSocket }) {
     fetchSymbols()
   }, [])
 
-  // ---- Fetch favorites ----
-  const fetchSelected = async () => {
-    setLoading(true)
-    try {
-      const res = await GET_SELECTED_SYMBOLS_API()
-      const selected = res.data.result || []
-      const initial = selected.map((s, i) => ({
-        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
-        symbol: s.instrument,
-        signal: "neutral",
-        bid: s.bid,
-        ask: s.ask,
-      }))
-      setInstruments(initial)
-      if (initial.length > 0 && !selectedSymbol) {
-        setSelectedSymbol(initial[0].symbol)
-        dispatch(selectedSymbolAction(initial[0].symbol))
-      }
-    } catch (err) {
-      console.error("Failed to fetch selected symbols", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchSelected()
-  }, [])
-
   // ---- Save to Redux ----
   useEffect(() => {
-    if (instruments.length > 0) {
-      dispatch(updateMandetorySymbols(instruments.map((i) => i.symbol)))
-    }
+    dispatch(updateMarketWatchSymbols(instruments.map((i) => i.symbol)))
   }, [instruments, dispatch])
 
   // ---- Add Symbols ----
@@ -162,14 +141,8 @@ function InstrumentsPanel({ ticksSocket }) {
         data: { symbols: [...selectedSymbols, ...prevSymbols] },
       }
       const response = await POST_SELECTED_SYMBOLS_API(payload)
-      const updated = response.data.result.instruments.map((s, i) => ({
-        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
-        symbol: s.instrument,
-        signal: "neutral",
-        bid: s.bid,
-        ask: s.ask,
-      }))
-      setInstruments(updated)
+      console.log({"updatedFavorites":response})
+      setInstruments(formatSymbolList(response.data.result.instruments))
       setSelectedSymbols([])
     } catch (err) {
       console.error("Failed to save symbols", err)
@@ -178,32 +151,27 @@ function InstrumentsPanel({ ticksSocket }) {
     }
   }
 
-  // ---- Filter ----
-  const handleTypeChange = async (value) => {
-    setFilterType(value)
-    if (value === "") return fetchSelected()
-
-    setPosting(true)
-    try {
-      const response = await GET_SELECTED_TYPES_SYMBOLS_API(value)
-      const newInstruments = response.data.result.map((s, i) => ({
-        id: `${i + 1}-${s.instrument}`, // Ensure unique IDs
-        symbol: s.instrument,
-        signal: "neutral",
-        bid: s.bid,
-        ask: s.ask,
-      }))
-      setInstruments(newInstruments)
-      if (newInstruments.length > 0) {
-        setSelectedSymbol(newInstruments[0].symbol)
-        dispatch(selectedSymbolAction(newInstruments[0].symbol))
+  useEffect(() => {
+    (async () => {
+      const endpoint = selectedFilterType == "Favorites" ? GET_SELECTED_SYMBOLS_API : GET_NEW_SELECTED_TYPES_SYMBOLS_API
+      setLoading(true)
+      try {
+        const { data } = await endpoint({[selectedFilterType]: filterTypes[selectedFilterType]})
+        console.log({"instrumentsData":data})
+        const newInstruments = formatSymbolList(data.result)
+        setInstruments(newInstruments)
+        if (newInstruments.length > 0) {
+          handleSelect(newInstruments[0])
+          setSelectedSymbol(newInstruments[0].symbol)
+          dispatch(selectedSymbolAction(newInstruments[0].symbol))
+        }
+      } catch (err) {
+        console.error("Failed to fetch instruments", err)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error("Failed to fetch instruments", err)
-    } finally {
-      setPosting(false)
-    }
-  }
+    })()
+  },[selectedFilterType, filterTypes, dispatch, activeId])
 
   // ---- Delete ----
   const handleDelete = async (instrument) => {
@@ -220,22 +188,23 @@ function InstrumentsPanel({ ticksSocket }) {
   }
 
   // ---- Select ----
-  const handleSelect = useCallback((symbol) => {
-    console.log("Instrument selected:", symbol)
-    setSelectedSymbol(symbol)
-    dispatch(selectedSymbolAction(symbol))
+  const handleSelect = useCallback((instrument) => {
+    console.log("Instrument selected:", instrument,instrument.symbol)
+    setSelectedSymbol(instrument.symbol)
+    dispatch(selectedSymbolAction(instrument.symbol))
+    dispatch(updateTicksAction(instrument))
   }, [dispatch])
 
   // ---- Drag Handlers ----
   const handleDragStart = useCallback((event) => {
-    setActiveId(event.active.id)
+    setActiveInstumetn(event.active.id)
     setIsDragging(true)
   }, [])
 
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event
 
-    setActiveId(null)
+    setActiveInstumetn(null)
     setIsDragging(false)
 
     if (!over || active.id === over.id) return
@@ -257,7 +226,7 @@ function InstrumentsPanel({ ticksSocket }) {
   }, [])
 
   const handleDragCancel = useCallback(() => {
-    setActiveId(null)
+    setActiveInstumetn(null)
     setIsDragging(false)
   }, [])
 
@@ -266,15 +235,10 @@ function InstrumentsPanel({ ticksSocket }) {
     instruments.map((i) => i.id),
     [instruments]
   )
-
-
-
-
-
-  if (loading) return <CircularProgress />
+  const activeInstrument = instruments.find(i => i.id === activeInstument);
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-900 border-r border-slate-700">
+    <div className="w-full h-full flex flex-col bg-[#1e1e1e] border-r border-[#1e1e1e]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700">
         <h2 className="text-sm font-medium text-slate-300 tracking-wide">
@@ -283,7 +247,7 @@ function InstrumentsPanel({ ticksSocket }) {
       </div>
 
       {/* Symbol selection */}
-      {filterType === "" && (
+      {selectedFilterType === "Favorites" && (
         <div className="m-2 mb-1 flex gap-2 items-center">
           <Autocomplete
             multiple
@@ -303,19 +267,32 @@ function InstrumentsPanel({ ticksSocket }) {
       )}
 
       {/* Filter Dropdown */}
-      <Autocomplete
+      <Select
+        className="m-2 mt-1"
+        size="small"
+        style={{ width: "calc(100% - 16px)" }}
+        aria-placeholder="Filter by Type"
+        value={selectedFilterType}
+        onChange={(event) =>   setSelectedFilterType(event.target.value)}
+      >
+        <MenuItem value="Favorites">Favorites</MenuItem>
+        {Object.keys(filterTypes).map(e => 
+          <MenuItem value={e} >{e}</MenuItem>
+        )}
+      </Select>
+      {/* <Autocomplete
         options={Object.entries(FILTER_TYPE).map(([label, value]) => ({
           label,
           value,
         }))}
         getOptionLabel={(option) => option.label}
         value={
-          filterType
+          selectedFilterType
             ? {
                 label: Object.keys(FILTER_TYPE).find(
-                  (k) => FILTER_TYPE[k] === filterType
+                  (k) => FILTER_TYPE[k] === selectedFilterType
                 ),
-                value: filterType,
+                value: selectedFilterType,
               }
             : { label: "Favorites", value: "" }
         }
@@ -325,7 +302,7 @@ function InstrumentsPanel({ ticksSocket }) {
         onChange={(_, val) => handleTypeChange(val?.value || "")}
         renderInput={(params) => <TextField {...params} />}
         disableClearable
-      />
+      /> */}
 
       {/* Table Header */}
       <div
@@ -339,7 +316,7 @@ function InstrumentsPanel({ ticksSocket }) {
       </div>
 
       {/* Rows with Drag & Drop */}
-      <div className="flex-1 overflow-y-auto">
+      {loading ? <CircularProgress style={{margin: "auto"}} /> : <div className="flex-1 overflow-y-auto">
         <DndContext
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
@@ -355,7 +332,7 @@ function InstrumentsPanel({ ticksSocket }) {
                 key={instrument.id}
                 instrument={instrument}
                 isSelected={selectedSymbol === instrument.symbol}
-                onSelect={handleSelect}
+                onSelect={()=>handleSelect(instrument)}
                 onDelete={handleDelete}
               />
             ))}
@@ -371,20 +348,20 @@ function InstrumentsPanel({ ticksSocket }) {
               }),
             }}
           >
-            {activeId ? (
+            {activeInstument ? (
               <div className="bg-slate-800 border border-slate-600 rounded shadow-lg">
                 <InstrumentRow
-                  instrument={instruments.find(i => i.id === activeId)}
+                  instrument={activeInstrument}
                   isSelected={false}
                   isDragging={true}
-                  onSelect={handleSelect}
+                  onSelect={() => handleSelect(activeInstrument)}
                   onDelete={handleDelete}
                 />
               </div>
             ) : null}
           </DragOverlay>
         </DndContext>
-      </div>
+      </div>}
     </div>
   )
 }

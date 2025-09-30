@@ -7,7 +7,7 @@ import { hideSnackbar } from "../../redux/snackbarslice";
 
 export default function GlobalSnackbar() {
     const dispatch = useDispatch();
-    const { open, message, severity } = useSelector((state) => state.snackbar);
+    const { open, message, severity,backgroundColor,position } = useSelector((state) => state.snackbar);
 
     const handleClose = (_, reason) => {
         if (reason === "clickaway") return;
@@ -19,7 +19,7 @@ export default function GlobalSnackbar() {
             open={open}
             autoHideDuration={3000}
             onClose={handleClose}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }} // position
+            anchorOrigin={position} // position
         >
             <Alert
                 onClose={handleClose}
@@ -28,7 +28,7 @@ export default function GlobalSnackbar() {
                 sx={{
                     width: "100%", color: "white",
                     fontWeight: "bold",
-                    backgroundColor:"rgba(127, 132, 138, 0.5)"
+                    backgroundColor:backgroundColor
                 }}
             >
                 <div style={{ whiteSpace: "pre-line" }}>

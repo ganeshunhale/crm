@@ -2,6 +2,15 @@
 import React, { memo, use, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+const getSymbol = (symbol) => {
+  let sym = symbol.split(".")[0]
+
+  const temp = sym.split("USD")
+  if(temp.length > 1 && temp[1] == "i") sym = temp[0] + "USD"
+
+  return sym
+}
+
 function TradingViewWidget({
   theme = "dark",
   interval = "D",
@@ -34,7 +43,7 @@ const symbol = useSelector(state => state.tradeposition.selectedSymbol)
         "locale": "en",
         "save_image": true,
         "style": "1",
-        "symbol": symbol,
+        "symbol": getSymbol(symbol) ,
         "theme": "dark",
         "timezone": "Etc/UTC",
         "backgroundColor": "#0F0F0F",

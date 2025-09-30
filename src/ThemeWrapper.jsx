@@ -1,14 +1,24 @@
 // ThemeWrapper.jsx
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { useLocation } from 'react-router-dom';
-import { darkTheme, lightTheme } from './dark.theme';
+import { lightTheme, darkTheme } from './theme';
+import { useMemo } from 'react';
 
 export default function ThemeWrapper({ children }) {
   const location = useLocation();
 
-  // Define your route condition for light vs dark
-  const isLightPage = location.pathname.includes('/dashboard/lay-out');
-  const theme = isLightPage ? lightTheme : darkTheme;
+  const theme = useMemo(() => {
+    if (location.pathname.startsWith('/dashboard/lay-out')) {
+      return lightTheme;
+    }
+    if (location.pathname.startsWith('/sign')) {
+      return lightTheme;
+    }
+     if (location.pathname.startsWith('/maintenance')) {
+      return lightTheme;
+    }
+    return darkTheme;
+  }, [location.pathname]);
 
   return (
     <ThemeProvider theme={theme}>

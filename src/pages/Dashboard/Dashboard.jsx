@@ -1,4 +1,4 @@
-import React, { memo, useEffect } from 'react'
+import React, { memo, useEffect, useMemo, useState } from 'react'
 import TradingViewWidget from '../../components/Tradingview-Widget/TradingViewWidget'
 import TradingPanel from '../../components/TradinPanel/TradingPanel'
 import PositionsTable from '../../components/PositionTable/PositionTable'
@@ -9,13 +9,20 @@ import { useSelector, useDispatch } from 'react-redux'
 import { websocketPositionEvent, websocketTicksEvent } from '../../redux/websocketMiddleware'
 import Footer from '../../components/Footer/Footer'
 import Split from 'react-split'
+import { Box, useMediaQuery, useTheme } from '@mui/material';
+import SwipeableEdgeDrawer from '../../components/MobileSidebar/BottomDrawer'
+import MobileOrderButton from '../../components/MobileSidebar/MobileOrderButtons'
+import { updateTradingAccountDetails } from '../../redux/tradingAccoutDetailsSLice'
 
 const ticksSocketUrl = import.meta.env.VITE_REACT_WS_TICKS_BRODCASTER_URL
 const socketUrl = import.meta.env.VITE_REACT_WS_BRODCASTER_URL
 
 const Dashboard = () => {
+  const theme = useTheme();
+  const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
   const dispatch = useDispatch()
-  const demo_id = useSelector((state) => state.auth?.data?.client_MT5_id?.demo_id)
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const demo_id = useSelector(state => state.auth.activeId)
   const symbols = useSelector((state) => state.tradeposition?.allMandetorySymbols || [])
 
   const { socket: ticksSocket, sendMessage: sendTicksMessage } = useWebSocket(ticksSocketUrl)
@@ -48,7 +55,7 @@ const Dashboard = () => {
     return () => {
       try {
         sendTicksMessage({ event: 'unsubscribe', stream: 'ticks', symbols })
-      } catch {}
+      } catch { }
       socketInstance.removeEventListener('open', handleOpen)
     }
   }, [ticksSocket, symbols, sendTicksMessage])
@@ -61,6 +68,7 @@ const Dashboard = () => {
     const subscribe = () => {
       try {
         sendBroadCasterMessage({ event: 'subscribe', stream: 'position', login_id: demo_id })
+        sendBroadCasterMessage({"event":"subscribe","stream":"account_details","login_id":Number(demo_id)})
       } catch (err) {
         console.error('sendBroadCasterMessage subscribe failed', err)
       }
@@ -80,7 +88,7 @@ const Dashboard = () => {
     return () => {
       try {
         sendBroadCasterMessage({ event: 'unsubscribe', stream: 'position', login_id: demo_id })
-      } catch {}
+      } catch { }
       socketInstance.removeEventListener('open', handleOpen)
     }
   }, [broadCasterSocket, demo_id, sendBroadCasterMessage])
@@ -93,9 +101,10 @@ const Dashboard = () => {
     const handlePositionMessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        console.log("Dashboard - Received broadcaster message:", data);
+        if (data.event === "account_details") {
+          dispatch(updateTradingAccountDetails(data.data))
+        }
         if (data.event === "position") {
-          console.log("Dashboard - Dispatching position event:", data.data);
           // Dispatch WebSocket position event to Redux middleware
           dispatch(websocketPositionEvent(data.data, demo_id))
         }
@@ -117,7 +126,6 @@ const Dashboard = () => {
       try {
         const data = JSON.parse(event.data)
         if (data.event === "ticks") {
-          console.log("Dashboard - Received ticks message:", data.data);
           // Dispatch WebSocket ticks event to Redux middleware for profit calculations
           dispatch(websocketTicksEvent(data.data))
         }
@@ -135,41 +143,53 @@ const Dashboard = () => {
       <NavBar />
 
       {/* Main layout split: Left | Center | Right */}
-      <Split
-        className="flex flex-1 overflow-hidden"
-        sizes={[20, 60, 20]}
-        minSize={[180, 400, 220]}
-        gutterSize={3}
-        expandToMin={true}
-      >
-        {/* Left */}
-        <div className="border-r border-slate-700 overflow-auto">
-          <InstrumentsPanel ticksSocket={ticksSocket} />
-        </div>
-
-        {/* Center split: Chart (top) | Positions (bottom) */}
+      {isMdUp ? (
         <Split
-          direction="vertical"
-          sizes={[70, 30]}
-          minSize={[200, 160]}
+          className="flex flex-1 overflow-hidden"
+          sizes={[20, 62, 18]}
+          minSize={[180, 400, 220]}
           gutterSize={3}
           expandToMin={true}
-          className="flex flex-col border-r border-slate-700"
         >
-          <div className="overflow-auto">
-            <TradingViewWidget />
+          {/* Left */}
+          <div className="border-slate-700 overflow-auto">
+            <InstrumentsPanel ticksSocket={ticksSocket} />
           </div>
 
-          <div className="overflow-auto">
-            <PositionsTable ticksSocket={ticksSocket} broadCasterSocket={broadCasterSocket} />
+          {/* Center */}
+          <Split
+            direction="vertical"
+            sizes={[65, 35]}
+            minSize={[200, 160]}
+            gutterSize={3}
+            expandToMin={true}
+            className="flex flex-col  border-slate-700"
+          >
+            <div className="overflow-auto">
+              <TradingViewWidget />
+            </div>
+            <div className="overflow-auto">
+              <PositionsTable ticksSocket={ticksSocket} broadCasterSocket={broadCasterSocket} />
+            </div>
+          </Split>
+
+          {/* Right */}
+          <div className="bg-[#1e1e1e] border-slate-700 overflow-auto ">
+            <TradingPanel broadCasterSocket={broadCasterSocket} />
           </div>
         </Split>
+      ) : (
+        <Box className="flex flex-col flex-1 overflow-hidden h-screen">
+          <Box className="overflow-auto flex-1">
+            <TradingViewWidget />
+          </Box>
+          <div className="bg-[#1e1e1e] border-l border-slate-700 overflow-auto">
+           <MobileOrderButton  open={drawerOpen} onClose={setDrawerOpen} />
+            <SwipeableEdgeDrawer broadCasterSocket={broadCasterSocket} open={drawerOpen} onClose={setDrawerOpen} />
+          </div>
+        </Box>
+      )}
 
-        {/* Right */}
-        <div className="bg-[#1e1e1e] border-l border-slate-700 overflow-auto">
-          <TradingPanel broadCasterSocket={broadCasterSocket} />
-        </div>
-      </Split>
 
       <Footer />
     </div>
