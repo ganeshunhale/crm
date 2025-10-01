@@ -8,13 +8,7 @@ export default function ThemeWrapper({ children }) {
   const location = useLocation();
 
   const theme = useMemo(() => {
-    if (location.pathname.startsWith('/dashboard/lay-out')) {
-      return lightTheme;
-    }
-    if (location.pathname.startsWith('/sign')) {
-      return lightTheme;
-    }
-     if (location.pathname.startsWith('/maintenance')) {
+    if (location.pathname.startsWith('/dashboard/lay-out') || location.pathname.startsWith('/sign') || location.pathname.startsWith('/maintenance') || location.pathname.startsWith('/payment-success')) {
       return lightTheme;
     }
     return darkTheme;

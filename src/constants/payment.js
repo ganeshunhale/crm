@@ -19,6 +19,16 @@ export const paymentMethods = [
     logo: "https://pay.cheezeebit.com/favicon.ico",
     unavailable: false,
   },
+  {
+    id: "jenapay",
+    name: "JenaPay",
+    processing: "Instant",
+    fee: "0 %",
+    minLimit: 10,
+    maxLimit: 15000,
+    logo: "https://jenapay.com/wp-content/uploads/2023/09/cropped-JenaPay-Logo-02-32x32.png",
+    unavailable: false,
+  },
 ];
 export const widrowalMethods = [
   {
@@ -31,6 +41,15 @@ export const widrowalMethods = [
     unavailable: false,
   },
  {
+    provider: "CheezeePay",
+    method: "P2P_BANK_IN",
+    fee: "0 %",
+    minLimit: 800,
+    maxLimit: 15000,
+    logo: "https://pay.cheezeebit.com/favicon.ico",
+    unavailable: false,
+  },
+   {
     provider: "CheezeePay",
     method: "P2P_BANK_IN",
     fee: "0 %",

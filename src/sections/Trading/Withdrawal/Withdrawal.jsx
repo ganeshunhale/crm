@@ -12,7 +12,7 @@ import {
     Divider,
     InputAdornment,
 } from "@mui/material";
-import { currencies, widrowalMethods } from "../../../contants/payment";
+import { currencies, widrowalMethods } from "../../../constants/payment";
 import axios from "axios";
 import { WITHDRAWAL_API } from "../../../API/ApiServices";
 

@@ -17,6 +17,8 @@ function App() {
   const TransactionHistory = lazy(() => import('./sections/Payment/TransactionHistory'));
   const Widrow = lazy(() => import('./sections/Trading/Withdrawal/Withdrawal'))
   const MaintenancePage = lazy(() => import('./components/Maintenance'))
+  const PaymentSuccessPage = lazy(() => import('./pages/PaymentSuccess'))
+
   return (
     // <AuthProvider>
     <>
@@ -27,16 +29,19 @@ function App() {
           <Route path="/sign-in" element={<LoginPage />} />
           <Route path="/sign-up" element={<RegisterPage />} />
           <Route path="/maintenance" element={<MaintenancePage />} />
-
+          
+            
         </Route>
 
         <Route element={<ProtectedRoutes />}>
+
           <Route
             path="/dashboard"
             element={
               <Dashboard />
             }
           />
+          <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/dashboard/lay-out" element={<LayOutPage />}>
             <Route path="accounts" element={<AccountPage />} />
             <Route path="summary" element={<SummaryPage />} />

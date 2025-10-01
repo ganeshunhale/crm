@@ -27,6 +27,7 @@ import { registerSchema } from "../../validations";
 import { Link } from "react-router-dom";
 import AuthNavbar from "../../components/AuthNavbar";
 import FormTextField from "../../components/Inputs/FormTextField";
+import FormSelect from "../../components/Inputs/FormSelect";
 // Optional: Replace with your own image
 const bgImage = "https://static.vecteezy.com/system/resources/thumbnails/042/538/438/small_2x/stock-market-price-for-investment-and-digital-trading-animation-free-video.jpg"; // <-- Replace this
 
@@ -194,37 +195,13 @@ function RegisterPage() {
                                             <FormTextField name="email" label="Email address" type="email" />
                                         </Grid>
                                         <Grid size={{ xs: 12, md: 6 }}>
-                                            <FormControl variant="standard" sx={{ width: '100%' }} error={formik.touched.country && Boolean(formik.errors.country)}>
-                                                <InputLabel id="country-label">Country</InputLabel>
-                                                <Select
-                                                    labelId="country-label"
-                                                    id="country"
-                                                    name="country"
-                                                    value={formik.values.country?.iso2 || ""} // show iso2 for matching
-                                                    onChange={(e) => {
-                                                        const selectedIso2 = e.target.value;
-                                                        const selectedCountry = countries.find((c) => c.iso2 === selectedIso2);
-                                                        formik.setFieldValue("country", selectedCountry || null);
-                                                    }}
-                                                    onBlur={formik.handleBlur}
-                                                    renderValue={(selected) => {
-                                                        const country = countries.find((c) => c.iso2 === selected);
-                                                        return country ? country.name : "";
-                                                    }}
-                                                >
-                                                    {countries?.map((data) => (
-                                                        <MenuItem key={data.id} value={data.iso2}>
-                                                            {data.name}
-                                                        </MenuItem>
-                                                    ))}
-
-                                                </Select>
-                                                {formik.touched.country && formik.errors.country && (
-                                                    <FormHelperText>{formik.errors.country}</FormHelperText>
-                                                )}
-                                            </FormControl>
-
-
+                                            <FormSelect
+                                                name="country"
+                                                label="Country"
+                                                options={countries}
+                                                getOptionLabel={(c) => c.name}
+                                                getOptionValue={(c) => c.iso2}
+                                            />
                                         </Grid>
                                         <Grid size={{ xs: 12, md: 6 }}>
                                             <FormControl variant="standard" sx={{ width: '100%' }} error={formik.touched.state && Boolean(formik.errors.state)}>
@@ -404,7 +381,7 @@ function RegisterPage() {
             {/* Footer */}
             <Box mt={8} textAlign="center" pb={2}>
                 <Typography variant="caption" color="textSecondary">
-                    &copy; {new Date().getFullYear()} CFDUP. All rights reserved.
+                    &copy; {new Date().getFullYear()} SGFX. All rights reserved.
                 </Typography>
             </Box>
         </Box>

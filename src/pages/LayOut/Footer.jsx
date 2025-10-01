@@ -16,16 +16,16 @@ export default function Footer() {
           {/* Left Section - Company Info */}
           <Grid size={{ xs: 12, md: 9 }}>
             <Typography variant="caption" color="text.secondary" paragraph>
-              CDFUP (SC) LTD is a Securities Dealer registered in Dubai
+              SGFX (SC) LTD is a Securities Dealer registered in Dubai
               with registration number 75######1 and authorised by the Financial
               Services Authority (FSA) with licence number DU####1. The registered
-              office of CDFUP (SC) LTD is at 2nd floor,
+              office of SGFX (SC) LTD is at 2nd floor,
               JLT cluster E, Dubai.
             </Typography>
 
             <Typography variant="caption" color="text.secondary" paragraph>
               The information on this website may only be copied with the
-              express written permission of CFDUP. <b>General Risk Warning:</b>{" "}
+              express written permission of SGFX. <b>General Risk Warning:</b>{" "}
               CFDs are leveraged products. Trading in CFDs carries a high level
               of risk thus may not be appropriate for all investors. The
               investment value can both increase and decrease and the investors
@@ -40,7 +40,7 @@ export default function Footer() {
             </Typography>
 
             <Typography variant="caption" color="text.secondary">
-              CFDUP complies with the Payment Card Industry Data Security
+              SGFX complies with the Payment Card Industry Data Security
               Standard (PCI DSS) to ensure your security and privacy. We conduct
               regular vulnerability scans and penetration tests in accordance
               with the PCI DSS requirements for our business model.
@@ -92,7 +92,7 @@ export default function Footer() {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            © 2020 - 2025. CFDUP
+            © 2020 - 2025. SGFX
           </Typography>
         </Box>
       </Container>

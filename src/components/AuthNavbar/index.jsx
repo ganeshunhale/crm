@@ -1,6 +1,6 @@
 import { Box, Grid, Typography } from "@mui/material";
 import React from "react";
-import Logo from "@/assets/Img/LOGO_DARK.svg";
+import Logo from "@/assets/Img/SGFX logo-DARK.svg";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import KeyIcon from '@mui/icons-material/Key';
 import { Link } from "react-router-dom";
@@ -32,7 +32,7 @@ const AuthNavbar = () => {
                     <Box
                         component="img"
                         src={Logo}
-                        alt="CFDUP Logo"
+                        alt="SGFX Logo"
                         sx={{ height: 50, width: "auto", cursor: "pointer" }}
                     />
                 </Box>

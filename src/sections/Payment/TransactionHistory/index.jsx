@@ -12,7 +12,7 @@ import { Chip, Container, Grid, Menu, MenuItem, Tab, Tabs, Tooltip } from '@mui/
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTransactionHistory } from '../../../redux/paymentSlice';
 import FilterChip from './TransactionFilters';
-import { DATES, STATUS, TRANSACTION_TYPE } from '../../../contants';
+import { DATES, STATUS, TRANSACTION_TYPE } from '../../../constants';
 import { getDateRange } from '../../../utils/formateDate';
 import TableSkelton from '../../../components/Skelton/TableSkelton';
 

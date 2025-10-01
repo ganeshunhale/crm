@@ -18,6 +18,7 @@ import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import { useNavigate } from "react-router-dom";
 
 export default function Sidebar({ collapsed }) {
+  
   const navigate = useNavigate();
   const [popoverState, setPopoverState] = useState({
     anchorEl: null,

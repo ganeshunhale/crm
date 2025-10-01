@@ -1,4 +1,4 @@
-import { AppBar, Avatar, Button, Divider, IconButton, Menu, MenuItem, Stack, Tooltip, Typography } from "@mui/material";
+import { AppBar, Button, Divider, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, useTheme,useMediaQuery } from "@mui/material";
 import {
     Drawer,
     Toolbar,
@@ -7,7 +7,7 @@ import {
 import React, { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useCallback, useState } from "react";
-import Logo from "@/assets/Img/LOGO_DARK.svg";
+import Logo from "@/assets/Img/SGFX logo-DARK.svg";
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft';
@@ -23,32 +23,28 @@ import Footer from "./Footer";
 const LayOut = () => {
 
     const dispatch = useDispatch()
+    const theme = useTheme();
+    const isMdDown = useMediaQuery(theme.breakpoints.down('md'));
     const [anchorElUser, setAnchorElUser] = useState(null);
     const [anchorElBalance, setAnchorElBalance] = useState(null);
     const [openCompleteProfile, setOpenComplteProfile] = useState(false)
     const navigate = useNavigate();
     const isLoggedIn = useSelector(state => state.auth);
-    console.log("isLoggedIn in nva", isLoggedIn)
     const settings = ['email', 'LogOut'];
-    const [defaultBalance, setDefaultBalance] = useState("")
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(isMdDown);
 
     const handleOpenUserMenu = (event) => {
-        console.log("event", event)
         setAnchorElUser(event.currentTarget);
     };
     const handleCloseUserMenu = () => {
         setAnchorElUser(null);
     };
     const handleOpenBalanceMenu = (event) => {
-        console.log("event", event)
-
         setAnchorElBalance(event.currentTarget);
     };
     const handleCloseBalanceMenu = () => {
         setAnchorElBalance(null);
     };
-
 
     const handleNavigate = () => {
         navigate('/dashboard')
@@ -92,7 +88,7 @@ const LayOut = () => {
                                 component="img"
                                 src={Logo}
                                 onClick={handleNavigate}
-                                alt="CFDUP Logo"
+                                alt="SGFX Logo"
                                 sx={{ height: 60, width: "auto", mr: 1, cursor: 'pointer' }}
                             />
 
@@ -252,18 +248,14 @@ const LayOut = () => {
                             backgroundColor: "#fff",
                             color: 'black',
                             overflow: "visible",
-                            borderRight: "1px solid rgba(0,0,0,0.2)",         // set style
-                            // borderColor: "grey.500",
+                            borderRight: "1px solid rgba(0,0,0,0.2)",
                         },
                     }}
                 >
-
                     <Toolbar />
                     <Box sx={{ overflow: "auto" }}>
                         <Sidebar collapsed={collapsed} />
                     </Box>
-
-                    {/* Footer with user info */}
                     <Box
                         sx={{
                             position: "absolute",
@@ -295,7 +287,7 @@ const LayOut = () => {
                             border: "1px solid rgba(0,0,0,0.2)",
                             zIndex: 90,
                             // boxShadow: 1,
-                            p:0.2,
+                            p: 0.2,
                             "&:hover": { backgroundColor: "#f5f5f5" },
                         }}
                     >

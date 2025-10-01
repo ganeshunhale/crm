@@ -9,7 +9,7 @@ import { GET_ACCOUNT_SUMMARY_API } from "../../../API/ApiServices";
 import { useLocation } from 'react-router-dom';
 import { useSelector,useDispatch } from "react-redux";
 import { updateActiveId } from "../../../redux/authSlice";
-import { DATES } from "../../../contants";
+import { DATES } from "../../../constants";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -274,7 +274,7 @@ const Summary = () => {
                                 {summaryData.tradingVolume || 0} USD
                             </Typography>
                             <Typography variant="subtitle2" sx={{ color: 'grey.500', mt: 5 }}>
-                                Lifetime {summaryData.lifetime || 0} USD
+                                Lifetime  {summaryData.lifetime || 0} USD
                             </Typography>
                         </Grid>
 

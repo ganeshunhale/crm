@@ -152,7 +152,7 @@ const Dashboard = () => {
           expandToMin={true}
         >
           {/* Left */}
-          <div className="border-slate-700 overflow-auto">
+          <div className="border-slate-700 ">
             <InstrumentsPanel ticksSocket={ticksSocket} />
           </div>
 

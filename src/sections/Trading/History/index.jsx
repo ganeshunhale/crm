@@ -18,7 +18,7 @@ import {
     fetchClosedOrders,
 } from "../../../redux/positionSlice";
 import { useDispatch, useSelector } from 'react-redux';
-import { ORDER_TYPE_CONSTANT } from '../../../contants';
+import { ORDER_TYPE_CONSTANT } from '../../../constants';
 import { formatPrice } from '../../../utils/formatePrice';
 import TableSkeleton from '../../../components/Skelton/TableSkelton';
 

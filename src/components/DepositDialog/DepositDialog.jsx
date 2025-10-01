@@ -21,7 +21,7 @@ export default function DepositDialog({ onOpen, onClose }) {
     const _id = isLoggedIn?.activeId
 
     const handleSubmit = async () => {
-        window.location.href = '/dashboard/lay-out/deposit'
+        window.location.href = '/dashboard/lay-out/accounts'
     };
     const handleTopUp = async (_id) => {
         try {

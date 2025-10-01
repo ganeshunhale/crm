@@ -2,7 +2,7 @@ import { Card, Chip } from "@mui/material"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { Box, Typography } from "@mui/material";
 
-const SingleMethod = ({method, onSelect }) => {
+const SingleMethod = ({ method, onSelect, accType }) => {
     return (
         <Card
             variant="outlined"
@@ -19,18 +19,22 @@ const SingleMethod = ({method, onSelect }) => {
                     xs: "1 1 100%", // full width on mobile
                     md: "1 1 calc(50% - 12px)", // half width on desktop
                 },
-                cursor: method.unavailable ? "not-allowed" : "pointer",
-                opacity: method.unavailable ? 0.5 : 1,
+                cursor: (accType === "Demo" || method.unavailable) ? "not-allowed" : "pointer",
+                opacity: (accType === "Demo" || method.unavailable) ? 0.5 : 1,
                 transition: "all 0.2s ease",
                 "&:hover": {
-                    boxShadow: method.unavailable ? "none" : "0 4px 12px rgba(0,0,0,0.1)",
-                    transform: method.unavailable ? "none" : "translateY(-2px)",
+                    boxShadow: (accType === "Demo" || method.unavailable) ? "none" : "0 4px 12px rgba(0,0,0,0.1)",
+                    transform: (accType === "Demo" || method.unavailable) ? "none" : "translateY(-2px)",
                 },
             }}
-            onClick={() => onSelect(method)}
+            onClick={() => {
+                if (accType !== "Demo" && !method.unavailable) {
+                    onSelect(method);
+                }
+            }}
         >
             {/* Unavailable badge */}
-            {method.unavailable && (
+            {(accType === "Demo" || method.unavailable) && (
                 <Chip
                     icon={<LockOutlinedIcon sx={{ fontSize: 14 }} />}
                     label="Unavailable"

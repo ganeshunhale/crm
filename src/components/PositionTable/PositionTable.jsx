@@ -22,8 +22,7 @@ import {
 } from "../../redux/positionSlice";
 import { updatePositionSymbols } from "../../redux/tradePositionSlice";
 import { showSnackbar } from "../../redux/snackbarslice";
-
-
+import { ORDER_TYPE_CONSTANT } from "../../constants";
 
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -43,8 +42,6 @@ const mapSocketToRow = (data) => {
     profit: data.Profit ?? 0,
   };
 };
-
-
 
 export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
   const dispatch = useDispatch();
@@ -239,12 +236,11 @@ export default function PositionsTable({ ticksSocket, broadCasterSocket }) {
 
           case "add":
             const newRow = mapSocketToRow(d);
-console.log("newRow from broadcaster", newRow)
+            console.log("newRow from broadcaster", newRow)
             if (activeTab === "open" && api) {
               const existingNode = api.getRowNode(newRow.positionId);
               !existingNode && api.applyTransaction({ add: [newRow] });
             }
-
             break;
 
           case "update":
@@ -325,18 +321,6 @@ console.log("newRow from broadcaster", newRow)
       </div>
     );
   };
-
-  const ORDER_TYPE_CONSTANT = {
-    0: "Buy",
-    1: "Sell",
-    2: "Buy_limit",
-    3: "Sell_limit",
-    4: "Buy_stop",
-    5: "Sell_stop",
-    6: "Buy_stop_limit",
-    7: "Sell_stop_limit",
-    8: "Close_by"
-  }
 
   const getReadableType = (type) => {
     if (activeTab === "closed") type === 0 ? type = 1 : type = 0

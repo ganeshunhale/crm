@@ -325,6 +325,7 @@ export default function CloseAllFooter() {
         onConfirm={handleConfirm}
         loading={loading}
       />
+      
     </>
   );
 }

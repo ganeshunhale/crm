@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Box } from '@mui/material';
-import Logo from "@/assets/Img/LOGO_LIGHT.svg";
+import Logo from "@/assets/Img/SGFX logo-LIGHT.svg";
 
 const LOGO_STYLES = {
   height: 60,
@@ -27,7 +27,7 @@ const NavbarLogo = ({ isMobile = false }) => {
       <Box
         component="img"
         src={Logo}
-        alt="CFDUP Logo"
+        alt="SGFX Logo"
         sx={LOGO_STYLES}
       />
     </Box>

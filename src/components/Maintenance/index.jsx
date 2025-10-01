@@ -49,7 +49,7 @@ export default function MaintenancePage() {
       {/* Footer note */}
       <Box mt={6}>
         <Typography variant="caption" color="text.secondary">
-          © 2020 {new Date().getFullYear()}  CFDUP
+          © 2020 {new Date().getFullYear()}  SGFX
         </Typography>
       </Box>
     </Container>

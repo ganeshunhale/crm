@@ -14,7 +14,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { loginAction } from '../../../redux/authSlice';
 import { showSnackbar } from '../../../redux/snackbarslice';
 import { useNavigate } from 'react-router-dom';
-import { CURRENCIES, MAXLEVERAGE } from '../../../contants';
+import { CURRENCIES, MAXLEVERAGE, TABS } from '../../../constants';
 import { userSchema } from '../../../validations';
 
 const ITEM_HEIGHT = 68;
@@ -34,11 +34,6 @@ const UserProfileForm = () => {
     const theme = useTheme();
     const isLoggedIn = useSelector((state) => state.auth);
     const [selectedTab, setSelectedTab] = useState('demo');
-
-    const tabs = [
-        { label: 'Demo', value: 'demo' },
-        { label: 'Real', value: 'real' },
-    ];
 
     const formik = useFormik({
         initialValues: {
@@ -106,7 +101,7 @@ const UserProfileForm = () => {
     });
 
     return (
-         <Container maxWidth="lg">
+        <Container maxWidth="lg">
         <Box sx={{ width: {xs:'100%', md: '50%', xl: '50%', },pt:4 }}>
             <form onSubmit={formik.handleSubmit}>
                 <Grid container direction="column" gap={2}>
@@ -143,7 +138,7 @@ const UserProfileForm = () => {
                                 },
                             }}
                         >
-                            {tabs.map((tab) => (
+                            {TABS.map((tab) => (
                                 <Tab key={tab.value} value={tab.value} label={tab.label} />
                             ))}
                         </Tabs>

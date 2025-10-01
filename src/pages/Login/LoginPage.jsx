@@ -189,7 +189,7 @@ function LoginPage() {
             {/* Footer */}
             <Box mt={8} textAlign="center" pb={2} bottom={0}>
                 <Typography variant="caption" color="textSecondary">
-                    &copy; {new Date().getFullYear()} CFDUP. All rights reserved.
+                    &copy; {new Date().getFullYear()} SGFX. All rights reserved.
                 </Typography>
             </Box>
         </Box>

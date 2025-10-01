@@ -25,7 +25,7 @@ const DepositButton = () => {
     if (isLoggedIn?.accountType === "Demo") {
       setOpenDialog(true)
     } else {
-      navigate('/dashboard/lay-out/deposit')
+      navigate('/dashboard/lay-out/accounts')
     }
   }
 

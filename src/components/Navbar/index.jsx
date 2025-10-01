@@ -40,7 +40,7 @@ function NavBar() {
 
     return (
         <>
-            {/* <MobileDrawer open={open} setOpen={setOpen}/> */}
+            <MobileDrawer open={open} setOpen={setOpen}/>
             <AppBar position="static" sx={NAVBAR_STYLES.appBar}>
                 <Container maxWidth="100%">
                     <Toolbar disableGutters>

@@ -316,7 +316,7 @@ function InstrumentsPanel({ ticksSocket }) {
       </div>
 
       {/* Rows with Drag & Drop */}
-      {loading ? <CircularProgress style={{margin: "auto"}} /> : <div className="flex-1 overflow-y-auto">
+      {loading ? <CircularProgress style={{margin: "auto"}} /> : <div className="flex-1 overflow-auto">
         <DndContext
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}

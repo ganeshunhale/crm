@@ -1,3 +1,8 @@
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
+
 export const ORDER_TYPE_CONSTANT = {
   0: "Buy",
   1: "Sell",
@@ -83,3 +88,36 @@ export const STATUS = [
   { label: 'Refund', value: 'Refund' },
   { label: 'Partial Payment', value: 'Partial Payment' },
 ]
+
+export const TABS = [
+  { label: 'Demo', value: 'demo' },
+  { label: 'Real', value: 'real' },
+];
+
+// Mobile SideBars
+export const MENU_CONFIG = [
+  {
+    id: 1,
+    label: 'Email',
+    icon: AccountCircleOutlinedIcon,
+    value: 'email'
+  },
+  {
+    id: 2,
+    label: 'LogOut',
+    icon: LogoutOutlinedIcon,
+    value: 'logout'
+  },
+  {
+    id: 3,
+    label: 'Instruments',
+    icon: MenuOutlinedIcon,
+    value: 'instruments'
+  },
+  {
+    id: 4,
+    label: 'Portfolio',
+    icon: BusinessCenterOutlinedIcon,
+    value: 'portfolio'
+  },
+];

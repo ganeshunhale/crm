@@ -41,7 +41,7 @@ const Accounts = () => {
   } = useSelector((state) => state.auth);
   const isLoading = activeTab === 'real' ? subAccountsLoading : subAccountsDemoLoading;
   const error = activeTab === 'real' ? subAccountsErrors : subAccountsDemoErrors;
-
+  
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
@@ -82,12 +82,19 @@ const Accounts = () => {
     getUserAccDetails();
   }, [getUserAccDetails]);
 
-  const handleActiveIdChange = useCallback(async (data) => {
+  const handleActiveIdChange = useCallback(async (data,mode) => {
     try {
+      console.log("data in deposit",data)
       const res = await SET_ACTIVE_ACCOUT(data.accountNumber)
       if (res.status === 200) {
         dispatch(updateActiveId(data.accountNumber));
-        navigate('/dashboard')
+        if (mode === "trade") {
+          navigate('/dashboard')
+        }
+        if(mode === "deposit"){
+          navigate('/dashboard/lay-out/deposit')
+        }
+
       }
       console.log("set active account response", res)
     } catch (error) {
@@ -95,10 +102,10 @@ const Accounts = () => {
     }
   }, [dispatch]);
 
-  const handleCopy = async(data) => {
-    console.log("data",data)
+  const handleCopy = async (data) => {
+    console.log("data", data)
     if (data) {
-      const accountId =  data === "MT5" ? "MT5" :data
+      const accountId = data === "MT5" ? "MT5" : data
       if (!accountId) return;
 
       try {
@@ -121,7 +128,7 @@ const Accounts = () => {
           message: `AccountId ${accountId} copied`,
           severity: "success",
           backgroundColor: "grey.500",
-          position:{ vertical: 'top', horizontal: 'center' }
+          position: { vertical: 'top', horizontal: 'center' }
         })
       );
     }
@@ -234,7 +241,7 @@ const Accounts = () => {
                       size="small"
                       startIcon={<CandlestickChartIcon />}
                       sx={{ backgroundColor: "#ffde02", textTransform: 'none', color: 'black', mr: 2, boxShadow: 'none' }}
-                      onClick={() => handleActiveIdChange(data)}
+                      onClick={() => handleActiveIdChange(data,"trade")}
                     >
                       Trade
                     </Button>
@@ -255,7 +262,7 @@ const Accounts = () => {
                           size="small"
                           startIcon={<ArrowCircleDownOutlinedIcon />}
                           sx={{ backgroundColor: "#6c859514", textTransform: 'none', color: 'black', boxShadow: 'none', mr: 2 }}
-                          onClick={() => navigate('/dashboard/lay-out/deposit')}
+                          onClick={() => handleActiveIdChange(data,"deposit")}
                         >
                           Deposit
                         </Button>
@@ -294,7 +301,7 @@ const Accounts = () => {
 
                     <Stack direction="row" gap={3} mt={2}>
                       <Typography variant="caption">
-                        Server MT5 <ContentCopyIcon sx={{ fontSize: 16, verticalAlign: 'middle', cursor: 'pointer' }}  onClick={() => handleCopy("MT5")}/>
+                        Server MT5 <ContentCopyIcon sx={{ fontSize: 16, verticalAlign: 'middle', cursor: 'pointer' }} onClick={() => handleCopy("MT5")} />
                       </Typography>
                       <Typography variant="caption">
                         MT5 login {data.accountNumber || 'N/A'} <ContentCopyIcon sx={{ fontSize: 16, verticalAlign: 'middle', cursor: 'pointer' }} onClick={() => handleCopy(data?.accountNumber)} />
